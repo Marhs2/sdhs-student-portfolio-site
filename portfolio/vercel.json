@@ -16,7 +16,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' https://va.vercel-scripts.com https://vercel.live; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co https://i.ytimg.com https://ojsfile.ohmynews.com; connect-src 'self' https://portfoilo-site-wk0h.onrender.com https://*.supabase.co https://vitals.vercel-insights.com https://vercel.live; frame-src https://www.youtube.com https://vercel.live; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
+          "value": "default-src 'self'; script-src 'self' https://va.vercel-scripts.com https://vercel.live; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co https://i.ytimg.com https://ojsfile.ohmynews.com; connect-src 'self' https://sdhs-student-portfolio-site.onrender.com https://*.supabase.co https://vitals.vercel-insights.com https://vercel.live; frame-src https://www.youtube.com https://vercel.live; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
         },
         {
           "key": "X-Content-Type-Options",

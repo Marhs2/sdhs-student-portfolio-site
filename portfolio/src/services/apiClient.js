@@ -1,4 +1,4 @@
-const productionApiBaseUrl = "https://portfoilo-site-wk0h.onrender.com";
+const productionApiBaseUrl = "https://sdhs-student-portfolio-site.onrender.com";
 const rawApiBaseUrl = (import.meta.env?.VITE_API_BASE_URL || "").replace(/\/$/, "");
 const publicGetCache = new Map();
 const inFlightPublicGets = new Map();
