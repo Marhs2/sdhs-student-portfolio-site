@@ -14,7 +14,9 @@ services:
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
       - key: PORTFOLIO_ALLOWED_ORIGINS
-        value: https://portfoilo-s-ite-rsgx.vercel.app,https://portfoilo-site-fullstack.vercel.app
+        value: https://sdhs-student-portfolio-site.vercel.app,https://portfoilo-s-ite-rsgx.vercel.app,https://portfoilo-site-fullstack.vercel.app
+      - key: PORTFOLIO_ALLOWED_ORIGIN_REGEX
+        value: https://sdhs-student-portfolio-site-[a-z0-9-]+(?:-[a-z0-9-]+)*\.vercel\.app
       - key: PORTFOLIO_ADMIN_EMAILS
         sync: false
       - key: PORTFOLIO_MAX_UPLOAD_BYTES

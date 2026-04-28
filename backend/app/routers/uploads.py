@@ -1,4 +1,5 @@
 import importlib.util
+import time
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
@@ -113,7 +114,8 @@ if has_multipart:
             except Exception:
                 bucket.upload(path=file_path, file=contents, file_options=file_options)
 
-            public_url = bucket.get_public_url(file_path)
+            public_url = bucket.get_public_url(file_path).rstrip("?")
+            public_url = f"{public_url}?v={int(time.time() * 1000)}"
             log_security_event(
                 "upload.profile_image_stored",
                 outcome="allowed",

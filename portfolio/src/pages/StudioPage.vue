@@ -15,6 +15,7 @@ import {
   removeProjectById,
   shouldLoadPrivateProfileAssets,
 } from "../features/profile/studioDrafts.js";
+import { cropDefaults, getCropPreviewStyle, getSquareCrop } from "../features/profile/imageCrop.js";
 import SurfaceSection from "../shared/layout/SurfaceSection.vue";
 import StatusView from "../shared/ui/StatusView.vue";
 import { showSuccess, showError } from "../shared/ui/toast.js";
@@ -72,10 +73,14 @@ const portfolioItems = ref([]);
 const selectedImage = ref(null);
 const previewImage = ref("");
 let previewObjectUrl = "";
+const imageNaturalSize = reactive({
+  width: 0,
+  height: 0,
+});
 const imageCrop = reactive({
-  x: 50,
-  y: 50,
-  zoom: 1,
+  x: cropDefaults.x,
+  y: cropDefaults.y,
+  zoom: cropDefaults.zoom,
 });
 const editingItemId = ref(null);
 const editingItemDraft = ref(null);
@@ -171,10 +176,17 @@ const sortedPortfolioItems = computed(() =>
       || (Date.parse(right.createdAt || "") || 0) - (Date.parse(left.createdAt || "") || 0);
   }),
 );
-const imageCropStyle = computed(() => ({
-  objectPosition: `${imageCrop.x}% ${imageCrop.y}%`,
-  transform: `scale(${imageCrop.zoom})`,
-}));
+const imageCropStyle = computed(() => {
+  if (!imageNaturalSize.width || !imageNaturalSize.height) {
+    return {};
+  }
+
+  return getCropPreviewStyle({
+    width: imageNaturalSize.width,
+    height: imageNaturalSize.height,
+    crop: imageCrop,
+  });
+});
 const noteLabelMap = {
   extraIntroduction: "추가 소개",
   exhibitionNote: "전시 메모",
@@ -265,9 +277,16 @@ const handleImageChange = (event) => {
   }
   previewObjectUrl = file ? URL.createObjectURL(file) : "";
   previewImage.value = previewObjectUrl || profileForm.imageUrl;
-  imageCrop.x = 50;
-  imageCrop.y = 50;
-  imageCrop.zoom = 1;
+  imageNaturalSize.width = 0;
+  imageNaturalSize.height = 0;
+  imageCrop.x = cropDefaults.x;
+  imageCrop.y = cropDefaults.y;
+  imageCrop.zoom = cropDefaults.zoom;
+};
+
+const handleCropImageLoad = (event) => {
+  imageNaturalSize.width = event.target.naturalWidth || 0;
+  imageNaturalSize.height = event.target.naturalHeight || 0;
 };
 
 const scrollToSection = (sectionId) => {
@@ -292,7 +311,7 @@ const buildCroppedImageFile = async () => {
 
   const image = await loadImage(previewObjectUrl);
   const canvas = document.createElement("canvas");
-  const outputSize = 900;
+  const outputSize = 640;
   canvas.width = outputSize;
   canvas.height = outputSize;
   const context = canvas.getContext("2d");
@@ -300,13 +319,14 @@ const buildCroppedImageFile = async () => {
     return selectedImage.value;
   }
 
-  const scale = Number(imageCrop.zoom) || 1;
-  const baseSize = Math.min(image.naturalWidth, image.naturalHeight) / scale;
-  const maxX = Math.max(0, image.naturalWidth - baseSize);
-  const maxY = Math.max(0, image.naturalHeight - baseSize);
-  const sourceX = maxX * (Number(imageCrop.x) / 100);
-  const sourceY = maxY * (Number(imageCrop.y) / 100);
+  const { x: sourceX, y: sourceY, size: baseSize } = getSquareCrop({
+    width: image.naturalWidth,
+    height: image.naturalHeight,
+    crop: imageCrop,
+  });
 
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = "high";
   context.drawImage(image, sourceX, sourceY, baseSize, baseSize, 0, 0, outputSize, outputSize);
 
   return new Promise((resolve) => {
@@ -321,7 +341,7 @@ const buildCroppedImageFile = async () => {
         }));
       },
       "image/webp",
-      0.9,
+      0.82,
     );
   });
 };
@@ -366,6 +386,10 @@ const handleSaveProfile = async () => {
       : "프로필을 생성했습니다. 프로젝트를 추가해 보세요.");
     saveState.value = "success";
     selectedImage.value = null;
+    if (previewObjectUrl) {
+      URL.revokeObjectURL(previewObjectUrl);
+      previewObjectUrl = "";
+    }
     await applyProfile(nextProfile);
     authState.value = await getAuthState({ force: true });
   } catch (error) {
@@ -693,11 +717,16 @@ onUnmounted(() => {
             </label>
           </div>
 
-          <div v-if="previewImage" class="studio-page__image-cropper">
+          <div v-if="previewImage" class="studio-page__image-cropper" :data-cropping="Boolean(selectedImage)">
             <div class="studio-page__image-cropper-preview">
-              <img :src="previewImage" alt="프로필 이미지 자르기 미리보기" :style="imageCropStyle" />
+              <img
+                :src="previewImage"
+                :alt="selectedImage ? '프로필 이미지 자르기 미리보기' : '현재 프로필 이미지'"
+                :style="selectedImage ? imageCropStyle : null"
+                @load="selectedImage && handleCropImageLoad($event)"
+              />
             </div>
-            <div class="studio-page__crop-controls">
+            <div v-if="selectedImage" class="studio-page__crop-controls">
               <label>
                 <span>가로 위치</span>
                 <input v-model.number="imageCrop.x" type="range" min="0" max="100" />
@@ -711,6 +740,7 @@ onUnmounted(() => {
                 <input v-model.number="imageCrop.zoom" type="range" min="1" max="2.4" step="0.05" />
               </label>
             </div>
+            <p v-else class="studio-page__crop-note">새 이미지를 선택하면 위치와 확대를 조정할 수 있습니다.</p>
           </div>
 
           <p v-if="saveMessage" class="studio-page__message" :data-state="saveState">{{ saveMessage }}</p>
@@ -1130,6 +1160,7 @@ onUnmounted(() => {
 }
 
 .studio-page__image-cropper-preview {
+  position: relative;
   overflow: hidden;
   width: 132px;
   height: 132px;
@@ -1138,15 +1169,29 @@ onUnmounted(() => {
 }
 
 .studio-page__image-cropper-preview img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  max-width: none;
+  transform-origin: top left;
+}
+
+.studio-page__image-cropper[data-cropping="false"] .studio-page__image-cropper-preview img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transform-origin: center;
 }
 
 .studio-page__crop-controls {
   display: grid;
   gap: 10px;
+}
+
+.studio-page__crop-note {
+  margin: 0;
+  color: var(--text-sub);
+  font-size: 0.84rem;
+  line-height: 1.5;
 }
 
 .studio-page__crop-controls label {

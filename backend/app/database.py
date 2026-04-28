@@ -1,5 +1,6 @@
 import httpx
 from contextlib import suppress
+from functools import lru_cache
 from inspect import signature
 from typing import Any
 
@@ -73,6 +74,7 @@ def close_supabase_clients() -> None:
     )
 
 
+@lru_cache(maxsize=1)
 def ensure_public_image_bucket() -> None:
     try:
         supabase.storage.update_bucket(settings.image_bucket, {"public": True})
