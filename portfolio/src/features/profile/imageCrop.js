@@ -40,6 +40,6 @@ export const getCropPreviewStyle = ({ width, height, crop }) => {
   return {
     width: `${(naturalWidth / squareCrop.size) * 100}%`,
     height: `${(naturalHeight / squareCrop.size) * 100}%`,
-    transform: `translate(${-((squareCrop.x / squareCrop.size) * 100)}%, ${-((squareCrop.y / squareCrop.size) * 100)}%)`,
+    transform: `translate(${-((squareCrop.x / naturalWidth) * 100)}%, ${-((squareCrop.y / naturalHeight) * 100)}%)`,
   };
 };

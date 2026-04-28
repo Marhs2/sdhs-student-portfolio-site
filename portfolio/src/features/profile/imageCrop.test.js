@@ -33,7 +33,7 @@ test("getCropPreviewStyle maps the saved crop rectangle into the preview", () =>
   }), {
     width: "177.77777777777777%",
     height: "100%",
-    transform: "translate(-38.88888888888889%, 0%)",
+    transform: "translate(-21.875%, 0%)",
   });
 });
 
