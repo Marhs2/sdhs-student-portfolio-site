@@ -1,0 +1,238 @@
+.app-shell {
+  min-height: 100vh;
+}
+
+.shell-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  padding: 14px 20px 0;
+}
+
+.shell-header__inner {
+  width: min(var(--page-width), 100%);
+  margin: 0 auto;
+  padding: 18px 22px 20px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface-solid);
+  box-shadow: var(--shadow-sm);
+}
+
+.shell-brand {
+  display: grid;
+  gap: 10px;
+  max-width: 54ch;
+}
+
+.shell-brand__home {
+  color: var(--text-strong);
+  font-family: var(--font-display);
+  font-size: clamp(1.7rem, 2.4vw, 2rem);
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.shell-brand__summary {
+  margin: 0;
+  color: var(--text-sub);
+  line-height: 1.65;
+  max-width: 48ch;
+}
+
+.shell-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.shell-action {
+  min-height: 42px;
+  padding: 0 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  letter-spacing: 0;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.shell-action:hover {
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-sm);
+}
+
+.shell-action--primary {
+  background: var(--brand-strong);
+  border-color: var(--brand-strong);
+  color: #fff;
+}
+
+.shell-action--ghost {
+  background: var(--bg-surface-solid);
+  color: var(--text-main);
+}
+
+.shell-action--ghost:hover {
+  background: var(--bg-panel-soft);
+}
+
+.shell-main {
+  width: min(var(--page-width), calc(100% - 40px));
+  margin: 0 auto;
+  padding: 28px 0 72px;
+  display: grid;
+  gap: 20px;
+}
+
+.shell-page-head {
+  padding: 2px 4px 8px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.shell-page-head__eyebrow,
+.directory-hero__eyebrow,
+.panel-head__eyebrow,
+.profile-card-v2__job,
+.portfolio-card-v2__eyebrow {
+  margin: 0;
+  color: var(--text-sub);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.shell-page-head h1,
+.directory-hero h2,
+.panel-head h3,
+.profile-summary-card h2 {
+  margin: 6px 0 0;
+  color: var(--text-strong);
+  font-family: var(--font-display);
+  line-height: 1.08;
+  letter-spacing: 0;
+}
+
+.shell-page-head h1 {
+  font-size: clamp(2.35rem, 4.6vw, 4.2rem);
+}
+
+.status-view,
+.editor-panel,
+.directory-hero,
+.directory-toolbar,
+.profile-summary-card,
+.html-surface,
+.portfolio-section {
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-xl);
+  background: var(--bg-surface-solid);
+  box-shadow: var(--shadow-sm);
+}
+
+.status-view {
+  padding: 24px;
+  display: grid;
+  gap: 10px;
+}
+
+.status-view h2,
+.status-view p {
+  margin: 0;
+}
+
+.status-view[data-state="error"] {
+  background: var(--danger-soft);
+  color: var(--danger-text);
+}
+
+.status-view[data-state="empty"] {
+  background: var(--bg-panel-soft);
+}
+
+.panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.panel-head p:last-child {
+  margin: 0;
+  max-width: 44ch;
+  color: var(--text-sub);
+  line-height: 1.6;
+}
+
+.editor-page,
+.directory-page,
+.profile-page-v2 {
+  display: grid;
+  gap: 20px;
+}
+
+.inline-message {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel-soft);
+  border: 1px solid var(--line-soft);
+}
+
+.inline-message[data-state="error"] {
+  background: var(--danger-soft);
+  color: var(--danger-text);
+}
+
+.inline-message[data-state="success"] {
+  background: var(--success-soft);
+  color: var(--success-text);
+}
+
+.empty-panel {
+  padding: 22px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel-soft);
+  display: grid;
+  gap: 8px;
+}
+
+.empty-panel strong,
+.empty-panel p {
+  margin: 0;
+}
+
+@media (max-width: 880px) {
+  .shell-header__inner,
+  .panel-head,
+  .shell-actions {
+    flex-direction: column;
+  }
+
+  .shell-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .shell-actions > * {
+    width: 100%;
+  }
+
+  .shell-main {
+    width: min(var(--page-width), calc(100% - 28px));
+  }
+}
