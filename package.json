@@ -1,0 +1,16 @@
+{
+  "name": "sdhs-student-portfolio-site",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -k -n frontend,backend \"npm --prefix portfolio run dev\" \"python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload\"",
+    "frontend:dev": "npm --prefix portfolio run dev",
+    "frontend:build": "npm --prefix portfolio run build",
+    "frontend:test": "npm --prefix portfolio test",
+    "backend:dev": "python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload",
+    "backend:test": "python -m unittest discover -s backend/tests"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
