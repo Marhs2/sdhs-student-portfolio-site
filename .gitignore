@@ -10,6 +10,8 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+pytest-cache-files-*/
+backend/.pytest-tmp/
 .ruff_cache/
 
 # Node/Vite

@@ -9,6 +9,7 @@ os.environ.setdefault("SUPABASE_URL", "https://example.supabase.co")
 os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "dummy")
 
 from backend.app import create_app  # noqa: E402
+from backend.app.auth import get_current_profile  # noqa: E402
 from backend.app.routers.portfolio_items import delete_portfolio_item_route  # noqa: E402
 
 
@@ -59,6 +60,46 @@ class PortfolioItemRouteTests(unittest.TestCase):
         self.assertEqual(response.json(), page)
         self.assertEqual(response.headers["x-result-count"], "1")
         self.assertEqual(response.headers["x-next-offset"], "2")
+
+    def test_create_portfolio_item_requires_public_approved_profile(self) -> None:
+        app = create_app()
+        app.dependency_overrides[get_current_profile] = lambda: {
+            "id": 9,
+            "email": "student@sdh.hs.kr",
+            "isVisible": False,
+            "reviewStatus": "review",
+        }
+        client = TestClient(app)
+
+        response = client.post(
+            "/api/portfolio-items",
+            json={"title": "Draft profile project"},
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_create_portfolio_item_allows_public_approved_profile(self) -> None:
+        app = create_app()
+        app.dependency_overrides[get_current_profile] = lambda: {
+            "id": 9,
+            "email": "student@sdh.hs.kr",
+            "isVisible": True,
+            "reviewStatus": "approved",
+        }
+        client = TestClient(app)
+
+        with patch(
+            "backend.app.routers.portfolio_items.create_portfolio_item",
+            return_value={"id": 12, "title": "Approved project", "ownerEmail": "student@sdh.hs.kr"},
+        ) as create_item:
+            response = client.post(
+                "/api/portfolio-items",
+                json={"title": "Approved project"},
+            )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["id"], 12)
+        create_item.assert_called_once()
 
     def test_delete_missing_item_uses_readable_error_message(self) -> None:
         with patch("backend.app.routers.portfolio_items.delete_portfolio_item", return_value=False):

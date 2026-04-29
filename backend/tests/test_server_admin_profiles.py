@@ -38,6 +38,24 @@ class ServerAdminProfileTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 404)
 
+    def test_server_admin_profile_list_keeps_admin_flag(self) -> None:
+        with patch(
+            "backend.app.routers.server_admin_profiles.list_admin_profiles",
+            return_value=[
+                {
+                    "id": 7,
+                    "name": "Admin",
+                    "reviewStatus": "approved",
+                    "isVisible": True,
+                    "isAdmin": True,
+                },
+            ],
+        ):
+            response = self.client.get("/api/server-admin/profiles")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()[0]["isAdmin"])
+
 
 if __name__ == "__main__":
     unittest.main()

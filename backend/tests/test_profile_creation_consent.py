@@ -48,6 +48,11 @@ class ProfileCreationConsentTests(unittest.TestCase):
 
         self.assertFalse(payload.isVisible)
 
+    def test_profile_creation_defaults_to_private_visibility(self) -> None:
+        payload = ProfilePayload(**build_profile_payload(createProfileConsent=True))
+
+        self.assertFalse(payload.isVisible)
+
     def test_profile_creation_ignores_admin_managed_taxonomy(self) -> None:
         payload = ProfilePayload(**build_profile_payload(createProfileConsent=True))
         dumped = payload.model_dump()

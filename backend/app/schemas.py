@@ -29,7 +29,7 @@ class ProfilePayload(BaseModel):
     tags: list[str] = Field(default_factory=list, max_length=MAX_TAGS)
     github: str = Field(default="", max_length=MAX_URL_LENGTH)
     imageUrl: str = Field(default="", max_length=MAX_URL_LENGTH)
-    isVisible: bool = True
+    isVisible: bool = False
     createProfileConsent: bool = Field(default=False, exclude=True, validate_default=True)
 
     @field_validator("tags")

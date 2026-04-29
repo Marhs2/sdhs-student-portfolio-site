@@ -59,6 +59,20 @@ def post_portfolio_item(
     payload: PortfolioItemPayload,
     profile: dict = Depends(get_current_profile),
 ) -> dict[str, Any]:
+    if not is_public_approved_profile(profile):
+        log_security_event(
+            "portfolio_item.create_unapproved_profile",
+            outcome="blocked",
+            severity="warning",
+            actor_email=profile.get("email"),
+            actor_profile_id=profile.get("id"),
+            target_type="portfolio_item",
+            reason="profile_is_not_public_approved",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="승인된 공개 프로필만 게시물을 만들 수 있습니다.",
+        )
     created = create_portfolio_item(profile["email"], payload.model_dump())
     log_security_event(
         "portfolio_item.created",

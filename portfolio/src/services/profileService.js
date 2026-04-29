@@ -27,6 +27,19 @@ export const normalizeProfile = (profile = {}) => ({
   isAdmin: Boolean(profile.isAdmin),
 });
 
+export const normalizePublicProfile = (profile = {}) => {
+  const {
+    email: _email,
+    isAdmin: _isAdmin,
+    isBanned: _isBanned,
+    isVisible: _isVisible,
+    reviewStatus: _reviewStatus,
+    ...publicProfile
+  } = normalizeProfile(profile);
+
+  return publicProfile;
+};
+
 const buildQueryString = (filters = {}) => {
   const params = new URLSearchParams();
 
@@ -44,7 +57,7 @@ const buildQueryString = (filters = {}) => {
 
 export const listProfiles = async (filters = {}) => {
   const profiles = await fetchJson(`/api/profiles${buildQueryString(filters)}`);
-  return profiles.map(normalizeProfile);
+  return profiles.map(normalizePublicProfile);
 };
 
 export const getProfileById = async (profileId, options = {}) => {
@@ -54,7 +67,7 @@ export const getProfileById = async (profileId, options = {}) => {
   }
 
   const profile = await fetchJson(`/api/profiles/${profileId}`, requestOptions);
-  return normalizeProfile(profile);
+  return options.authenticated ? normalizeProfile(profile) : normalizePublicProfile(profile);
 };
 
 export const getProfileBundle = async (profileId, options = {}) => {
@@ -65,7 +78,9 @@ export const getProfileBundle = async (profileId, options = {}) => {
 
   const bundle = await fetchJson(`/api/profiles/${profileId}/bundle`, requestOptions);
   return {
-    profile: normalizeProfile(bundle.profile),
+    profile: options.authenticated
+      ? normalizeProfile(bundle.profile)
+      : normalizePublicProfile(bundle.profile),
     html: bundle.html || "",
     portfolioItems: Array.isArray(bundle.portfolioItems)
       ? bundle.portfolioItems.map(normalizePortfolioItem)

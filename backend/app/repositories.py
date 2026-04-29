@@ -231,8 +231,8 @@ def _profile_insert_payload(payload: dict[str, Any], *, email: str, extended_sch
                 "department": payload.get("department", ""),
                 "track": payload.get("track", ""),
                 "tags": _normalize_tag_list(payload.get("tags")),
-                "review_status": payload.get("reviewStatus", "approved"),
-                "is_visible": payload.get("isVisible", True),
+                "review_status": payload.get("reviewStatus", "review"),
+                "is_visible": False,
             }
         )
 

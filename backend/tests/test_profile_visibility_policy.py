@@ -121,7 +121,7 @@ class ProfileVisibilityPolicyTests(unittest.TestCase):
             ),
         )
 
-    def test_created_profiles_are_public_by_default(self) -> None:
+    def test_created_profiles_start_in_review_and_private_by_default(self) -> None:
         payload = _profile_insert_payload(
             {
                 "name": "New Student",
@@ -135,8 +135,8 @@ class ProfileVisibilityPolicyTests(unittest.TestCase):
             extended_schema=True,
         )
 
-        self.assertEqual(payload["review_status"], "approved")
-        self.assertTrue(payload["is_visible"])
+        self.assertEqual(payload["review_status"], "review")
+        self.assertFalse(payload["is_visible"])
 
     def test_created_profiles_can_start_private(self) -> None:
         payload = _profile_insert_payload(
@@ -148,6 +148,23 @@ class ProfileVisibilityPolicyTests(unittest.TestCase):
                 "github": "https://github.com/student",
                 "imageUrl": "",
                 "isVisible": False,
+            },
+            email="student@sdh.hs.kr",
+            extended_schema=True,
+        )
+
+        self.assertFalse(payload["is_visible"])
+
+    def test_created_profiles_ignore_client_requested_public_visibility(self) -> None:
+        payload = _profile_insert_payload(
+            {
+                "name": "New Student",
+                "description": "Created during signup",
+                "job": "Full Stack",
+                "tags": ["vue"],
+                "github": "https://github.com/student",
+                "imageUrl": "",
+                "isVisible": True,
             },
             email="student@sdh.hs.kr",
             extended_schema=True,

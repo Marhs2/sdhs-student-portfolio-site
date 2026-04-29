@@ -7,6 +7,15 @@ from ..security_logging import log_security_event
 
 
 router = APIRouter(prefix="/api/admin/profiles", tags=["admin-profiles"])
+REGULAR_ADMIN_HIDDEN_FIELDS = {"isAdmin"}
+
+
+def _regular_admin_profile_payload(profile: dict) -> dict:
+    return {
+        key: value
+        for key, value in profile.items()
+        if key not in REGULAR_ADMIN_HIDDEN_FIELDS
+    }
 
 
 @router.get("")
@@ -17,12 +26,13 @@ def get_admin_profiles(
     sort: str = Query(default="featured"),
     _admin: dict = Depends(require_admin),
 ) -> list[dict]:
-    return list_admin_profiles(
+    profiles = list_admin_profiles(
         review_status=review_status,
         visibility=visibility,
         search=search,
         sort=sort,
     )
+    return [_regular_admin_profile_payload(profile) for profile in profiles]
 
 
 @router.put("/{profile_id}")
@@ -42,4 +52,4 @@ def put_admin_profile(
         target_id=profile_id,
         changed_fields=sorted(update_payload.keys()),
     )
-    return updated
+    return _regular_admin_profile_payload(updated)
