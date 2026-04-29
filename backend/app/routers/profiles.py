@@ -13,7 +13,6 @@ from ..repositories import (
     get_profile_by_email,
     get_profile_by_id,
     get_profile_html,
-    is_public_approved_profile,
     list_profiles_page,
     list_portfolio_items_by_owner,
     list_profiles,
@@ -139,7 +138,6 @@ def get_profile_bundle(
         "portfolioItems": list_portfolio_items_by_owner(
             owner_email,
             include_private=False,
-            public_owner_verified=is_public_approved_profile(profile),
         ),
     }
 
@@ -234,7 +232,6 @@ def get_profile_portfolio_items(
     return list_portfolio_items_by_owner(
         profile["email"],
         include_private=False,
-        public_owner_verified=is_public_approved_profile(profile),
     )
 
 

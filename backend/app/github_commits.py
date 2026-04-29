@@ -35,6 +35,7 @@ _github_api_semaphore = BoundedSemaphore(4)
 _negative_cache_lock = RLock()
 _negative_lookup_cache: dict[tuple[str, int], tuple[float, str, str]] = {}
 NEGATIVE_LOOKUP_CACHE_TTL_SECONDS = 300
+NEGATIVE_LOOKUP_CACHE_MAX_ENTRIES = 1024
 
 
 class GithubCommitLookupError(RuntimeError):
@@ -64,6 +65,23 @@ def _read_negative_lookup_cache(cache_key: tuple[str, int]) -> None:
     raise GithubCommitLookupError(message)
 
 
+def _prune_negative_lookup_cache(now: float) -> None:
+    expired_keys = [
+        key
+        for key, (expires_at, _error_type, _message) in _negative_lookup_cache.items()
+        if now >= expires_at
+    ]
+    for key in expired_keys:
+        _negative_lookup_cache.pop(key, None)
+
+    while len(_negative_lookup_cache) >= NEGATIVE_LOOKUP_CACHE_MAX_ENTRIES:
+        oldest_key = min(
+            _negative_lookup_cache,
+            key=lambda key: _negative_lookup_cache[key][0],
+        )
+        _negative_lookup_cache.pop(oldest_key, None)
+
+
 def _store_negative_lookup(cache_key: tuple[str, int], error: Exception) -> None:
     if isinstance(error, GithubCommitConfigurationError):
         return
@@ -72,8 +90,10 @@ def _store_negative_lookup(cache_key: tuple[str, int], error: Exception) -> None
     if "요청이 많아" in str(error):
         return
     with _negative_cache_lock:
+        now = monotonic()
+        _prune_negative_lookup_cache(now)
         _negative_lookup_cache[cache_key] = (
-            monotonic() + NEGATIVE_LOOKUP_CACHE_TTL_SECONDS,
+            now + NEGATIVE_LOOKUP_CACHE_TTL_SECONDS,
             type(error).__name__,
             str(error),
         )

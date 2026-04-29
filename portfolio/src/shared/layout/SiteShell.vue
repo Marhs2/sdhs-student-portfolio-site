@@ -1,9 +1,7 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
-import { RouterLink, useRoute } from "vue-router";
+import { onBeforeUnmount, onMounted, ref } from "vue";
+import { RouterLink } from "vue-router";
 import { showError, showSuccess } from "../../shared/ui/toast.js";
-
-const route = useRoute();
 
 const authState = ref({
   loading: true,
@@ -12,10 +10,6 @@ const authState = ref({
   profileId: null,
   hasProfile: false,
 });
-
-const currentSectionKey = computed(() => String(route.meta.section || "browse"));
-
-const navItems = computed(() => [{ key: "browse", label: "작품 탐색", to: "/" }]);
 
 let stopWatchingAuth = null;
 let authServicePromise = null;
@@ -120,18 +114,6 @@ onBeforeUnmount(() => {
           </svg>
           <span class="site-shell__brand-text">SDHS</span>
         </RouterLink>
-
-        <nav class="site-shell__nav" aria-label="Primary">
-          <RouterLink
-            v-for="item in navItems"
-            :key="item.key"
-            :to="item.to"
-            class="site-shell__nav-link"
-            :data-active="item.key === currentSectionKey || (item.key === 'browse' && currentSectionKey === 'profile')"
-          >
-            {{ item.label }}
-          </RouterLink>
-        </nav>
 
         <div class="site-shell__actions">
           <template v-if="authState.user">
@@ -254,34 +236,6 @@ onBeforeUnmount(() => {
   font-size: 0.95rem;
   letter-spacing: 0;
   white-space: nowrap;
-}
-
-.site-shell__nav {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.site-shell__nav-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 34px;
-  padding: 0 14px;
-  border-radius: var(--radius-sm);
-  color: var(--text-sub);
-  font-size: 0.84rem;
-  font-weight: 600;
-}
-
-.site-shell__nav-link:hover {
-  color: var(--text-strong);
-}
-
-.site-shell__nav-link[data-active="true"] {
-  background: var(--bg-surface-solid);
-  color: var(--text-strong);
-  border: 1px solid var(--line-soft);
 }
 
 .site-shell__actions {
@@ -430,12 +384,6 @@ onBeforeUnmount(() => {
     padding-top: 12px;
     padding-bottom: 12px;
     flex-wrap: wrap;
-  }
-
-  .site-shell__nav {
-    order: 3;
-    width: 100%;
-    overflow-x: auto;
   }
 
   .site-shell__footer-inner {

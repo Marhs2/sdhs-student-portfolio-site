@@ -147,18 +147,31 @@ def test_repeated_auth_failures_are_rate_limited() -> None:
 
 def test_repeated_sensitive_mutations_are_rate_limited() -> None:
     app_module._sensitive_mutation_events_by_host.clear()
+    for _ in range(app_module.SENSITIVE_MUTATION_LIMIT):
+        app_module._record_sensitive_mutation("198.51.100.30")
     client = TestClient(create_app())
 
-    response = None
+    response = client.delete(
+        "/api/server-admin/profiles/7",
+        headers={"X-Forwarded-For": "198.51.100.30"},
+    )
+
+    assert response.status_code == 429
+    assert response.headers["retry-after"] == str(app_module.SENSITIVE_MUTATION_WINDOW_SECONDS)
+
+
+def test_unauthenticated_sensitive_mutations_do_not_consume_mutation_quota() -> None:
+    app_module._sensitive_mutation_events_by_host.clear()
+    client = TestClient(create_app())
+
     for _ in range(app_module.SENSITIVE_MUTATION_LIMIT + 1):
         response = client.delete(
             "/api/server-admin/profiles/7",
-            headers={"X-Forwarded-For": "198.51.100.30"},
+            headers={"X-Forwarded-For": "198.51.100.31"},
         )
 
-    assert response is not None
-    assert response.status_code == 429
-    assert response.headers["retry-after"] == str(app_module.SENSITIVE_MUTATION_WINDOW_SECONDS)
+    assert response.status_code == 401
+    assert "198.51.100.31" not in app_module._sensitive_mutation_events_by_host
 
 
 def test_forwarded_for_is_ignored_for_untrusted_direct_clients() -> None:
@@ -172,3 +185,16 @@ def test_forwarded_for_is_ignored_for_untrusted_direct_clients() -> None:
     )()
 
     assert app_module._client_host_from_request(request) == "198.51.100.44"
+
+
+def test_forwarded_for_uses_last_untrusted_hop_from_trusted_proxy() -> None:
+    request = type(
+        "Request",
+        (),
+        {
+            "headers": {"x-forwarded-for": "198.51.100.99, 203.0.113.12"},
+            "client": type("Client", (), {"host": "10.0.0.5"})(),
+        },
+    )()
+
+    assert app_module._client_host_from_request(request) == "203.0.113.12"

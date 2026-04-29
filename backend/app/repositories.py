@@ -713,7 +713,6 @@ def list_portfolio_items_by_owner(
     owner_email: str,
     *,
     include_private: bool = False,
-    public_owner_verified: bool = False,
 ) -> list[dict[str, Any]]:
     def select() -> list[dict[str, Any]]:
         response = _execute_with_missing_column_fallback(
@@ -731,7 +730,7 @@ def list_portfolio_items_by_owner(
     if include_private:
         return select()
     normalized_owner = owner_email.strip().lower()
-    if not public_owner_verified and normalized_owner not in _get_public_owner_emails():
+    if normalized_owner not in _get_public_owner_emails():
         return []
     return _public_cache.get_or_set(
         ("portfolio-items-by-owner-public", normalized_owner),

@@ -137,6 +137,21 @@ def test_github_missing_user_lookup_is_negative_cached(monkeypatch) -> None:
     assert calls == ["missing-user"]
 
 
+def test_github_negative_lookup_cache_is_bounded(monkeypatch) -> None:
+    github_commits._negative_lookup_cache.clear()
+    monkeypatch.setattr(github_commits, "NEGATIVE_LOOKUP_CACHE_MAX_ENTRIES", 3)
+
+    for index in range(5):
+        github_commits._store_negative_lookup(
+            (f"missing-{index}", 2026),
+            github_commits.GithubUserNotFoundError("missing"),
+        )
+
+    assert len(github_commits._negative_lookup_cache) == 3
+    assert ("missing-0", 2026) not in github_commits._negative_lookup_cache
+    assert ("missing-1", 2026) not in github_commits._negative_lookup_cache
+
+
 def test_github_commit_status_endpoint_reports_success(monkeypatch) -> None:
     app = create_app()
     app.dependency_overrides[require_server_admin] = lambda: {

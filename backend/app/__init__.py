@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 from collections import deque
 from ipaddress import ip_address, ip_network
+from threading import RLock
 from time import monotonic
 
 from fastapi import FastAPI
@@ -38,6 +39,7 @@ SENSITIVE_MUTATION_WINDOW_SECONDS = 60
 SENSITIVE_MUTATION_LIMIT = 30
 _auth_failure_events_by_host: dict[str, deque[float]] = {}
 _sensitive_mutation_events_by_host: dict[str, deque[float]] = {}
+_rate_limit_lock = RLock()
 TRUSTED_FORWARDING_NETWORKS = tuple(
     ip_network(network)
     for network in (
@@ -55,8 +57,27 @@ def _client_host_from_request(request: Request) -> str:
     direct_host = request.client.host if request.client else ""
     forwarded_for = request.headers.get("x-forwarded-for", "")
     if forwarded_for and _is_trusted_forwarding_source(direct_host):
-        return forwarded_for.split(",", 1)[0].strip()
+        forwarded_host = _trusted_forwarded_client_host(forwarded_for)
+        if forwarded_host:
+            return forwarded_host
     return direct_host
+
+
+def _trusted_forwarded_client_host(forwarded_for: str) -> str:
+    forwarded_hosts = [host.strip() for host in forwarded_for.split(",") if host.strip()]
+    for host in reversed(forwarded_hosts):
+        try:
+            address = ip_address(host)
+        except ValueError:
+            continue
+        if not any(address in network for network in TRUSTED_FORWARDING_NETWORKS):
+            return str(address)
+    if forwarded_hosts:
+        try:
+            return str(ip_address(forwarded_hosts[0]))
+        except ValueError:
+            return ""
+    return ""
 
 
 def _is_trusted_forwarding_source(client_host: str) -> bool:
@@ -69,28 +90,44 @@ def _is_trusted_forwarding_source(client_host: str) -> bool:
     return any(address in network for network in TRUSTED_FORWARDING_NETWORKS)
 
 
-def _recent_auth_failures(client_host: str, now: float) -> deque[float]:
-    events = _auth_failure_events_by_host.setdefault(client_host, deque())
+def _recent_auth_failures(client_host: str, now: float, *, create: bool = True) -> deque[float]:
+    events = _auth_failure_events_by_host.get(client_host)
+    if events is None:
+        if not create:
+            return deque()
+        events = deque()
+        _auth_failure_events_by_host[client_host] = events
     while events and now - events[0] > AUTH_FAILURE_WINDOW_SECONDS:
         events.popleft()
+    if not events and not create:
+        _auth_failure_events_by_host.pop(client_host, None)
     return events
 
 
 def _is_auth_failure_limited(client_host: str) -> bool:
     if not client_host:
         return False
-    return len(_recent_auth_failures(client_host, monotonic())) >= AUTH_FAILURE_LIMIT
+    with _rate_limit_lock:
+        return len(_recent_auth_failures(client_host, monotonic(), create=False)) >= AUTH_FAILURE_LIMIT
 
 
 def _record_auth_failure(client_host: str) -> None:
     if client_host:
-        _recent_auth_failures(client_host, monotonic()).append(monotonic())
+        with _rate_limit_lock:
+            _recent_auth_failures(client_host, monotonic()).append(monotonic())
 
 
-def _recent_sensitive_mutations(client_host: str, now: float) -> deque[float]:
-    events = _sensitive_mutation_events_by_host.setdefault(client_host, deque())
+def _recent_sensitive_mutations(client_host: str, now: float, *, create: bool = True) -> deque[float]:
+    events = _sensitive_mutation_events_by_host.get(client_host)
+    if events is None:
+        if not create:
+            return deque()
+        events = deque()
+        _sensitive_mutation_events_by_host[client_host] = events
     while events and now - events[0] > SENSITIVE_MUTATION_WINDOW_SECONDS:
         events.popleft()
+    if not events and not create:
+        _sensitive_mutation_events_by_host.pop(client_host, None)
     return events
 
 
@@ -111,12 +148,14 @@ def _is_sensitive_mutation_request(request: Request) -> bool:
 def _is_sensitive_mutation_limited(client_host: str) -> bool:
     if not client_host:
         return False
-    return len(_recent_sensitive_mutations(client_host, monotonic())) >= SENSITIVE_MUTATION_LIMIT
+    with _rate_limit_lock:
+        return len(_recent_sensitive_mutations(client_host, monotonic(), create=False)) >= SENSITIVE_MUTATION_LIMIT
 
 
 def _record_sensitive_mutation(client_host: str) -> None:
     if client_host:
-        _recent_sensitive_mutations(client_host, monotonic()).append(monotonic())
+        with _rate_limit_lock:
+            _recent_sensitive_mutations(client_host, monotonic()).append(monotonic())
 
 
 @asynccontextmanager
@@ -190,7 +229,8 @@ class SecurityAuditMiddleware(BaseHTTPMiddleware):
             response.headers.setdefault("Retry-After", str(AUTH_FAILURE_WINDOW_SECONDS))
             return response
 
-        if _is_sensitive_mutation_request(request):
+        is_sensitive_mutation = _is_sensitive_mutation_request(request)
+        if is_sensitive_mutation:
             if _is_sensitive_mutation_limited(client_host):
                 log_security_event(
                     "http.sensitive_mutation_rate_limited",
@@ -209,7 +249,6 @@ class SecurityAuditMiddleware(BaseHTTPMiddleware):
                 response.headers.setdefault("X-Request-ID", request_id)
                 response.headers.setdefault("Retry-After", str(SENSITIVE_MUTATION_WINDOW_SECONDS))
                 return response
-            _record_sensitive_mutation(client_host)
 
         try:
             response = await call_next(request)
@@ -251,6 +290,9 @@ class SecurityAuditMiddleware(BaseHTTPMiddleware):
                 duration_ms=duration_ms,
                 **context,
             )
+
+        if is_sensitive_mutation and response.status_code not in {401, 403}:
+            _record_sensitive_mutation(client_host)
 
         if request.url.path.startswith("/api/") and duration_ms >= 1500:
             log_security_event(

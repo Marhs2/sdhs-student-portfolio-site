@@ -196,7 +196,7 @@ class ProfileVisibilityPolicyTests(unittest.TestCase):
 
         self.assertEqual(public_items, [])
 
-    def test_public_portfolio_items_by_verified_owner_skip_owner_email_scan(self) -> None:
+    def test_public_portfolio_items_by_owner_rechecks_owner_visibility(self) -> None:
         class FakeQuery:
             def eq(self, *_args):
                 return self
@@ -217,18 +217,16 @@ class ProfileVisibilityPolicyTests(unittest.TestCase):
             ) as execute_query,
             patch(
                 "backend.app.repositories._get_public_owner_emails",
-                side_effect=AssertionError("public owner list should not be loaded"),
-            ),
+                return_value={"approved@sdh.hs.kr"},
+            ) as get_public_owner_emails,
         ):
-            public_items = list_portfolio_items_by_owner(
-                "approved@sdh.hs.kr",
-                public_owner_verified=True,
-            )
+            public_items = list_portfolio_items_by_owner("approved@sdh.hs.kr")
 
         self.assertEqual(len(public_items), 1)
         self.assertEqual(public_items[0]["id"], 8)
         self.assertEqual(public_items[0]["title"], "Public project")
         self.assertNotIn("ownerEmail", public_items[0])
+        self.assertEqual(get_public_owner_emails.call_count, 1)
         self.assertEqual(execute_query.call_count, 1)
 
 
