@@ -85,6 +85,33 @@ class ProfileBundleTests(unittest.TestCase):
             },
         )
 
+    def test_public_profile_bundle_does_not_fast_path_portfolio_visibility(self) -> None:
+        profile = {
+            "id": 1,
+            "name": "Kim",
+            "email": "kim@sdh.hs.kr",
+            "isAdmin": False,
+            "isVisible": True,
+            "reviewStatus": "approved",
+        }
+
+        with (
+            patch("backend.app.routers.profiles.get_profile_by_id", return_value=profile.copy()),
+            patch("backend.app.routers.profiles.get_profile_html", return_value="<p>?뚭컻</p>"),
+            patch(
+                "backend.app.routers.profiles.list_portfolio_items_by_owner",
+                return_value=[],
+            ) as list_portfolio_items,
+        ):
+            response = self.client.get("/api/profiles/1/bundle")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["portfolioItems"], [])
+        list_portfolio_items.assert_called_once_with(
+            "kim@sdh.hs.kr",
+            include_private=False,
+        )
+
     def test_public_profile_detail_hides_operational_fields(self) -> None:
         profile = {
             "id": 1,
@@ -100,6 +127,32 @@ class ProfileBundleTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"id": 1, "name": "Kim"})
+
+    def test_public_profile_portfolio_items_do_not_fast_path_visibility(self) -> None:
+        profile = {
+            "id": 1,
+            "name": "Kim",
+            "email": "kim@sdh.hs.kr",
+            "isAdmin": False,
+            "isVisible": True,
+            "reviewStatus": "approved",
+        }
+
+        with (
+            patch("backend.app.routers.profiles.get_profile_by_id", return_value=profile.copy()),
+            patch(
+                "backend.app.routers.profiles.list_portfolio_items_by_owner",
+                return_value=[],
+            ) as list_portfolio_items,
+        ):
+            response = self.client.get("/api/profiles/1/portfolio-items")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), [])
+        list_portfolio_items.assert_called_once_with(
+            "kim@sdh.hs.kr",
+            include_private=False,
+        )
 
 
 if __name__ == "__main__":
