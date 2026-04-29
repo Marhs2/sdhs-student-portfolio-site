@@ -118,6 +118,12 @@ def _execute_with_missing_column_fallback(
         return _execute_query(legacy_query, operation=legacy_operation)
 
 
+def _apply_query_window(query: Any, *, limit: int | None = None, offset: int = 0) -> Any:
+    if limit is None:
+        return query
+    return query.range(offset, offset + limit - 1)
+
+
 def _build_profile_select_query(
     columns: str,
     *,
@@ -128,6 +134,8 @@ def _build_profile_select_query(
     sort: str = "featured",
     extended_schema: bool = True,
     include_hidden: bool = False,
+    limit: int | None = None,
+    offset: int = 0,
 ):
     query = supabase.table("userProfile").select(columns)
 
@@ -153,7 +161,11 @@ def _build_profile_select_query(
     if not include_hidden and extended_schema:
         query = query.eq("is_visible", True).eq("review_status", "approved")
 
-    return query
+    return _apply_query_window(query, limit=limit, offset=offset)
+
+
+def _trim_page(items: list[dict[str, Any]], limit: int) -> tuple[list[dict[str, Any]], bool]:
+    return items[:limit], len(items) > limit
 
 
 def _select_profiles(
@@ -165,6 +177,8 @@ def _select_profiles(
     sort: str = "featured",
     include_hidden: bool = False,
     include_private: bool = False,
+    limit: int | None = None,
+    offset: int = 0,
 ) -> list[dict[str, Any]]:
     response = _execute_with_missing_column_fallback(
         _build_profile_select_query(
@@ -176,12 +190,16 @@ def _select_profiles(
             sort=sort,
             extended_schema=True,
             include_hidden=include_hidden,
+            limit=limit,
+            offset=offset,
         ),
         _build_profile_select_query(
             LEGACY_PROFILE_COLUMNS,
             job=job,
             sort=sort,
             extended_schema=False,
+            limit=limit,
+            offset=offset,
         ),
         operation="profiles.select",
         legacy_operation="profiles.select_legacy",
@@ -253,8 +271,17 @@ def _profile_update_payload(payload: dict[str, Any], *, extended_schema: bool = 
     return {key: value for key, value in raw_update.items() if value is not None}
 
 
-def _build_portfolio_item_select_query(columns: str):
-    return supabase.table("portfoilo").select(columns).order("created_at", desc=True)
+def _build_portfolio_item_select_query(
+    columns: str,
+    *,
+    owner_emails: list[str] | None = None,
+    limit: int | None = None,
+    offset: int = 0,
+):
+    query = supabase.table("portfoilo").select(columns).order("created_at", desc=True)
+    if owner_emails is not None:
+        query = query.in_("owner", owner_emails)
+    return _apply_query_window(query, limit=limit, offset=offset)
 
 
 def _portfolio_insert_payload(
@@ -353,6 +380,45 @@ def list_profiles(
         for item in normalized
         if is_public_approved_profile(item)
     ]
+
+
+def list_profiles_page(
+    *,
+    school: str | None = None,
+    department: str | None = None,
+    track: str | None = None,
+    job: str | None = None,
+    sort: str = "featured",
+    limit: int,
+    offset: int = 0,
+) -> tuple[list[dict[str, Any]], bool]:
+    normalized_job = normalize_job(job)
+
+    def select() -> list[dict[str, Any]]:
+        return _select_profiles(
+            school=school,
+            department=department,
+            track=track,
+            job=job,
+            sort=sort,
+            include_hidden=False,
+            include_private=False,
+            limit=limit + 1,
+            offset=offset,
+        )
+
+    normalized = _public_cache.get_or_set(
+        ("profiles-page", school, department, track, normalized_job, sort, limit, offset),
+        select,
+    )
+    if normalized_job:
+        normalized = [item for item in normalized if item["job"] == normalized_job]
+    public_profiles = [
+        item
+        for item in normalized
+        if is_public_approved_profile(item)
+    ]
+    return _trim_page(public_profiles, limit)
 
 
 def list_admin_profiles(
@@ -597,6 +663,45 @@ def list_portfolio_items(*, include_private: bool = False) -> list[dict[str, Any
         ("portfolio-items-public",),
         lambda: _filter_public_portfolio_items(select(), _get_public_owner_emails()),
     )
+
+
+def list_portfolio_items_page(
+    *,
+    limit: int,
+    offset: int = 0,
+) -> tuple[list[dict[str, Any]], bool]:
+    public_owner_emails = sorted(_get_public_owner_emails())
+    if not public_owner_emails:
+        return [], False
+
+    def select() -> list[dict[str, Any]]:
+        response = _execute_with_missing_column_fallback(
+            _build_portfolio_item_select_query(
+                PORTFOLIO_ITEM_COLUMNS,
+                owner_emails=public_owner_emails,
+                limit=limit + 1,
+                offset=offset,
+            ),
+            _build_portfolio_item_select_query(
+                LEGACY_PORTFOLIO_ITEM_COLUMNS,
+                owner_emails=public_owner_emails,
+                limit=limit + 1,
+                offset=offset,
+            ),
+            operation="portfolio_items.select_page",
+            legacy_operation="portfolio_items.select_page_legacy",
+        )
+        return [
+            item
+            for item in (normalize_portfolio_item_record(row, include_private=True) for row in response.data)
+            if item
+        ]
+
+    items = _public_cache.get_or_set(
+        ("portfolio-items-public-page", tuple(public_owner_emails), limit, offset),
+        lambda: _filter_public_portfolio_items(select(), set(public_owner_emails)),
+    )
+    return _trim_page(items, limit)
 
 
 def list_portfolio_items_by_owner(owner_email: str, *, include_private: bool = False) -> list[dict[str, Any]]:

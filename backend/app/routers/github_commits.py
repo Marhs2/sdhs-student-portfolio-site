@@ -1,3 +1,5 @@
+from concurrent.futures import ThreadPoolExecutor
+
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
@@ -14,6 +16,7 @@ from ..security_logging import log_security_event
 
 
 router = APIRouter(prefix="/api/github", tags=["github"])
+GITHUB_COMMIT_BATCH_WORKERS = 8
 
 
 def _handle_github_error(error: Exception) -> None:
@@ -32,6 +35,35 @@ def _handle_github_error(error: Exception) -> None:
             detail="GitHub 활동 수를 조회하지 못했습니다.",
         )
     raise error
+
+
+def _lookup_github_commit_batch(usernames: list[str]) -> tuple[list[dict], list[dict]]:
+    results = []
+    errors = []
+    if not usernames:
+        return results, errors
+
+    max_workers = min(GITHUB_COMMIT_BATCH_WORKERS, len(usernames))
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_by_username = {
+            username: executor.submit(get_total_commits, username)
+            for username in usernames
+        }
+        for username in usernames:
+            try:
+                results.append(future_by_username[username].result())
+            except GithubCommitConfigurationError:
+                raise
+            except (GithubUserNotFoundError, GithubCommitLookupError, ValueError, httpx.HTTPError) as item_error:
+                errors.append(
+                    {
+                        "username": username,
+                        "reason": type(item_error).__name__,
+                        "message": str(item_error),
+                    },
+                )
+
+    return results, errors
 
 
 @router.get("/commit-status")
@@ -118,23 +150,8 @@ def get_github_commits(username: str) -> dict:
 
 @router.post("/commits")
 def post_github_commits(payload: GithubCommitBatchPayload) -> dict:
-    results = []
-    errors = []
     try:
-        for username in iter_unique_github_usernames(payload.usernames):
-            try:
-                results.append(get_total_commits(username))
-            except GithubCommitConfigurationError:
-                raise
-            except (GithubUserNotFoundError, GithubCommitLookupError, ValueError, httpx.HTTPError) as item_error:
-                errors.append(
-                    {
-                        "username": username,
-                        "reason": type(item_error).__name__,
-                        "message": str(item_error),
-                    },
-                )
-
+        results, errors = _lookup_github_commit_batch(iter_unique_github_usernames(payload.usernames))
         return {"results": results, "errors": errors}
     except Exception as error:
         log_security_event(

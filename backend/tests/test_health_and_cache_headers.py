@@ -36,6 +36,30 @@ class HealthAndCacheHeaderTests(unittest.TestCase):
             "no-cache, no-store, must-revalidate",
         )
 
+    def test_public_profiles_support_limit_offset_without_changing_array_contract(self) -> None:
+        client = TestClient(create_app())
+        page = [{"id": 2, "name": "B"}, {"id": 3, "name": "C"}]
+
+        with patch("backend.app.routers.profiles.list_profiles_page", return_value=(page, False)):
+            response = client.get("/api/profiles?limit=2&offset=1")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), page)
+        self.assertEqual(response.headers["x-result-count"], "2")
+        self.assertNotIn("x-next-offset", response.headers)
+
+    def test_public_profiles_expose_next_offset_when_more_results_exist(self) -> None:
+        client = TestClient(create_app())
+        page = [{"id": 1, "name": "A"}, {"id": 2, "name": "B"}]
+
+        with patch("backend.app.routers.profiles.list_profiles_page", return_value=(page, True)):
+            response = client.get("/api/profiles?limit=2")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), page)
+        self.assertEqual(response.headers["x-result-count"], "2")
+        self.assertEqual(response.headers["x-next-offset"], "2")
+
 
 if __name__ == "__main__":
     unittest.main()

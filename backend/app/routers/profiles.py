@@ -13,6 +13,7 @@ from ..repositories import (
     get_profile_by_email,
     get_profile_by_id,
     get_profile_html,
+    list_profiles_page,
     list_portfolio_items_by_owner,
     list_profiles,
     save_profile_html,
@@ -33,16 +34,35 @@ def get_profiles(
     track: str | None = Query(default=None),
     job: str | None = Query(default=None),
     sort: str = Query(default="featured"),
+    limit: int | None = Query(default=None, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
 ) -> list[dict]:
     response.headers["Cache-Control"] = get_settings().public_cache_control_header
-    return list_profiles(
+    if limit is None:
+        profiles = list_profiles(
+            school=school,
+            department=department,
+            track=track,
+            job=job,
+            sort=sort,
+            include_private=False,
+        )
+        response.headers["X-Result-Count"] = str(len(profiles))
+        return profiles
+
+    page, has_more = list_profiles_page(
         school=school,
         department=department,
         track=track,
         job=job,
         sort=sort,
-        include_private=False,
+        limit=limit,
+        offset=offset,
     )
+    response.headers["X-Result-Count"] = str(len(page))
+    if has_more:
+        response.headers["X-Next-Offset"] = str(offset + limit)
+    return page
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)

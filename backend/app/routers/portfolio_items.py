@@ -1,6 +1,6 @@
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
 from ..auth import get_current_profile, require_portfolio_item_write_access
 from ..config import get_settings
@@ -11,6 +11,7 @@ from ..repositories import (
     get_portfolio_item_by_id,
     is_public_approved_profile,
     list_portfolio_items,
+    list_portfolio_items_page,
     update_portfolio_item,
 )
 from ..schemas import PortfolioItemPayload, PortfolioItemUpdatePayload
@@ -21,9 +22,22 @@ router = APIRouter(prefix="/api/portfolio-items", tags=["portfolio-items"])
 
 
 @router.get("")
-def get_all_portfolio_items(response: Response) -> list[dict[str, Any]]:
+def get_all_portfolio_items(
+    response: Response,
+    limit: int | None = Query(default=None, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+) -> list[dict[str, Any]]:
     response.headers["Cache-Control"] = get_settings().public_cache_control_header
-    return list_portfolio_items()
+    if limit is None:
+        items = list_portfolio_items()
+        response.headers["X-Result-Count"] = str(len(items))
+        return items
+
+    page, has_more = list_portfolio_items_page(limit=limit, offset=offset)
+    response.headers["X-Result-Count"] = str(len(page))
+    if has_more:
+        response.headers["X-Next-Offset"] = str(offset + limit)
+    return page
 
 
 @router.get("/{item_id}")

@@ -48,6 +48,18 @@ class PortfolioItemRouteTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 404)
 
+    def test_public_portfolio_items_support_limit_offset_headers(self) -> None:
+        client = TestClient(create_app())
+        page = [{"id": 2, "title": "B"}]
+
+        with patch("backend.app.routers.portfolio_items.list_portfolio_items_page", return_value=(page, True)):
+            response = client.get("/api/portfolio-items?limit=1&offset=1")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), page)
+        self.assertEqual(response.headers["x-result-count"], "1")
+        self.assertEqual(response.headers["x-next-offset"], "2")
+
     def test_delete_missing_item_uses_readable_error_message(self) -> None:
         with patch("backend.app.routers.portfolio_items.delete_portfolio_item", return_value=False):
             with self.assertRaises(HTTPException) as raised:

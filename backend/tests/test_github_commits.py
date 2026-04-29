@@ -1,5 +1,7 @@
 import os
+import time
 from datetime import datetime, timezone
+from threading import Lock
 
 os.environ.setdefault("SUPABASE_URL", "https://example.supabase.co")
 os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "dummy")
@@ -184,3 +186,35 @@ def test_github_commit_batch_keeps_lookup_failures_partial(monkeypatch) -> None:
         "reason": "GithubCommitLookupError",
         "message": "upstream failed",
     }
+
+
+def test_github_commit_batch_uses_bounded_parallel_lookup(monkeypatch) -> None:
+    app = create_app()
+    active = 0
+    max_active = 0
+    lock = Lock()
+
+    def fake_get_total_commits(username: str) -> dict:
+        nonlocal active, max_active
+        with lock:
+            active += 1
+            max_active = max(max_active, active)
+        time.sleep(0.02)
+        with lock:
+            active -= 1
+        return {"username": username, "totalCommits": 10}
+
+    monkeypatch.setattr(
+        "backend.app.routers.github_commits.get_total_commits",
+        fake_get_total_commits,
+    )
+
+    response = TestClient(app).post(
+        "/api/github/commits",
+        json={"usernames": [f"user-{index}" for index in range(12)]},
+    )
+
+    assert response.status_code == 200
+    assert len(response.json()["results"]) == 12
+    assert max_active > 1
+    assert max_active <= 8

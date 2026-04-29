@@ -13,6 +13,7 @@ from backend.app.repositories import (  # noqa: E402
     _profile_insert_payload,
     is_public_approved_profile,
     list_profiles,
+    list_profiles_page,
 )
 
 
@@ -54,6 +55,21 @@ class ProfileVisibilityPolicyTests(unittest.TestCase):
             self.assertEqual([profile["id"] for profile in list_profiles()], [1])
 
         self.assertEqual(select_profiles.call_count, 1)
+
+    def test_public_profile_page_overfetches_one_row_for_next_offset(self) -> None:
+        profiles = [
+            {"id": 1, "job": "프론트엔드", "isVisible": True, "reviewStatus": "approved"},
+            {"id": 2, "job": "프론트엔드", "isVisible": True, "reviewStatus": "approved"},
+            {"id": 3, "job": "프론트엔드", "isVisible": True, "reviewStatus": "approved"},
+        ]
+
+        with patch("backend.app.repositories._select_profiles", return_value=profiles) as select_profiles:
+            page, has_more = list_profiles_page(limit=2, offset=10)
+
+        self.assertEqual([profile["id"] for profile in page], [1, 2])
+        self.assertTrue(has_more)
+        self.assertEqual(select_profiles.call_args.kwargs["limit"], 3)
+        self.assertEqual(select_profiles.call_args.kwargs["offset"], 10)
 
     def test_admin_profile_list_bypasses_public_cache(self) -> None:
         profiles = [

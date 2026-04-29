@@ -140,6 +140,41 @@ test("fetchJson invalidates public GET cache around mutations", async () => {
   }
 });
 
+test("fetchJson can preserve public GET cache for read-only POST requests", async () => {
+  clearApiCache();
+  const originalFetch = globalThis.fetch;
+  let getCount = 0;
+
+  globalThis.fetch = async (url, options = {}) => {
+    if (String(url).includes("/api/profiles") && !options.method) {
+      getCount += 1;
+      return {
+        ok: true,
+        json: async () => ({ version: getCount }),
+      };
+    }
+
+    assert.equal(options.preservePublicCache, undefined);
+    return {
+      ok: true,
+      json: async () => ({ total: 1 }),
+    };
+  };
+
+  try {
+    assert.deepEqual(await fetchJson("/api/profiles"), { version: 1 });
+    await fetchJson("/api/github/commits", {
+      method: "POST",
+      preservePublicCache: true,
+      body: "{}",
+    });
+    assert.deepEqual(await fetchJson("/api/profiles"), { version: 1 });
+  } finally {
+    globalThis.fetch = originalFetch;
+    clearApiCache();
+  }
+});
+
 test("fetchJson formats FastAPI validation errors into readable messages", async () => {
   clearApiCache();
   const originalFetch = globalThis.fetch;

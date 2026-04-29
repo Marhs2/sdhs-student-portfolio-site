@@ -2,6 +2,12 @@ import { fetchJson } from "./apiClient.js";
 
 const GITHUB_PROFILE_PATTERN = /^https:\/\/(?:www\.)?github\.com\/([^/?#]+)\/?$/i;
 const GITHUB_COMMIT_BATCH_SIZE = 50;
+const commitCountCache = new Map();
+const commitCountCacheTtlMs = 5 * 60 * 1000;
+
+export const clearGithubCommitCache = () => {
+  commitCountCache.clear();
+};
 
 export const extractGithubUsername = (githubUrl = "") => {
   const normalized = String(githubUrl || "").trim();
@@ -22,12 +28,26 @@ export const getGithubCommitCounts = async (usernames = []) => {
     return {};
   }
 
+  const now = Date.now();
+  const counts = {};
+  const missingUsernames = [];
+  uniqueUsernames.forEach((username) => {
+    const cacheKey = username.toLowerCase();
+    const cached = commitCountCache.get(cacheKey);
+    if (cached && now - cached.createdAt < commitCountCacheTtlMs) {
+      counts[cacheKey] = cached.totalCommits;
+      return;
+    }
+    missingUsernames.push(username);
+  });
+
   const payloads = [];
   const errors = [];
-  for (let index = 0; index < uniqueUsernames.length; index += GITHUB_COMMIT_BATCH_SIZE) {
-    const batch = uniqueUsernames.slice(index, index + GITHUB_COMMIT_BATCH_SIZE);
+  for (let index = 0; index < missingUsernames.length; index += GITHUB_COMMIT_BATCH_SIZE) {
+    const batch = missingUsernames.slice(index, index + GITHUB_COMMIT_BATCH_SIZE);
     const payload = await fetchJson("/api/github/commits", {
       method: "POST",
+      preservePublicCache: true,
       headers: {
         "Content-Type": "application/json",
       },
@@ -42,10 +62,18 @@ export const getGithubCommitCounts = async (usernames = []) => {
     throw new Error(errors[0].message || "GitHub 활동 수를 불러오지 못했습니다.");
   }
 
-  return Object.fromEntries(
-    results.map((item) => [
-      String(item.username || "").toLowerCase(),
-      Number(item.totalCommits) || 0,
-    ]),
-  );
+  results.forEach((item) => {
+    const cacheKey = String(item.username || "").toLowerCase();
+    const totalCommits = Number(item.totalCommits) || 0;
+    if (!cacheKey) {
+      return;
+    }
+    counts[cacheKey] = totalCommits;
+    commitCountCache.set(cacheKey, {
+      createdAt: Date.now(),
+      totalCommits,
+    });
+  });
+
+  return counts;
 };

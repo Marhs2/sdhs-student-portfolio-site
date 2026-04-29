@@ -19,6 +19,9 @@ const navItems = computed(() => [{ key: "browse", label: "작품 탐색", to: "/
 
 let stopWatchingAuth = null;
 let authServicePromise = null;
+let authHydrationHandle = null;
+let authHydrationTimer = null;
+let isUnmounted = false;
 const showScrollTop = ref(false);
 
 const loadAuthService = () => {
@@ -52,6 +55,26 @@ const refreshAuth = async () => {
   }
 };
 
+const scheduleAuthHydration = () => {
+  const hydrate = async () => {
+    await refreshAuth();
+    if (isUnmounted) {
+      return;
+    }
+    const { watchAuthState } = await loadAuthService();
+    if (!isUnmounted) {
+      stopWatchingAuth = watchAuthState(refreshAuth);
+    }
+  };
+
+  if (typeof window.requestIdleCallback === "function") {
+    authHydrationHandle = window.requestIdleCallback(hydrate, { timeout: 1500 });
+    return;
+  }
+
+  authHydrationTimer = window.setTimeout(hydrate, 800);
+};
+
 const handleAuthAction = async () => {
   const { signInWithGoogle, signOutUser } = await loadAuthService();
 
@@ -65,14 +88,20 @@ const handleAuthAction = async () => {
   await signInWithGoogle();
 };
 
-onMounted(async () => {
-  await refreshAuth();
-  const { watchAuthState } = await loadAuthService();
-  stopWatchingAuth = watchAuthState(refreshAuth);
+onMounted(() => {
   window.addEventListener("scroll", handleScroll, { passive: true });
+  scheduleAuthHydration();
 });
 
 onBeforeUnmount(() => {
+  isUnmounted = true;
+  if (
+    authHydrationHandle !== null &&
+    typeof window.cancelIdleCallback === "function"
+  ) {
+    window.cancelIdleCallback(authHydrationHandle);
+  }
+  clearTimeout(authHydrationTimer);
   stopWatchingAuth?.();
   window.removeEventListener("scroll", handleScroll);
 });

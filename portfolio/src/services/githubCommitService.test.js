@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { extractGithubUsername, getGithubCommitCounts } from "./githubCommitService.js";
+import {
+  clearGithubCommitCache,
+  extractGithubUsername,
+  getGithubCommitCounts,
+} from "./githubCommitService.js";
 
 test("extractGithubUsername accepts handles and GitHub profile URLs", () => {
   assert.equal(extractGithubUsername("@Marhs2"), "Marhs2");
@@ -12,10 +16,12 @@ test("extractGithubUsername accepts handles and GitHub profile URLs", () => {
 });
 
 test("getGithubCommitCounts posts unique usernames to the backend", async () => {
+  clearGithubCommitCache();
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url, options) => {
     assert.equal(url, "/api/github/commits");
     assert.equal(options.method, "POST");
+    assert.equal(options.preservePublicCache, undefined);
     assert.deepEqual(JSON.parse(options.body), {
       usernames: ["torvalds", "gaearon"],
     });
@@ -44,10 +50,12 @@ test("getGithubCommitCounts posts unique usernames to the backend", async () => 
     );
   } finally {
     globalThis.fetch = originalFetch;
+    clearGithubCommitCache();
   }
 });
 
 test("getGithubCommitCounts splits large user batches", async () => {
+  clearGithubCommitCache();
   const originalFetch = globalThis.fetch;
   const calls = [];
   globalThis.fetch = async (url, options) => {
@@ -74,10 +82,12 @@ test("getGithubCommitCounts splits large user batches", async () => {
     assert.equal(result["user-51"], 1);
   } finally {
     globalThis.fetch = originalFetch;
+    clearGithubCommitCache();
   }
 });
 
 test("getGithubCommitCounts reports backend item errors when every lookup fails", async () => {
+  clearGithubCommitCache();
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () => ({
     ok: true,
@@ -94,5 +104,34 @@ test("getGithubCommitCounts reports backend item errors when every lookup fails"
     );
   } finally {
     globalThis.fetch = originalFetch;
+    clearGithubCommitCache();
+  }
+});
+
+test("getGithubCommitCounts reuses cached user counts", async () => {
+  clearGithubCommitCache();
+  const originalFetch = globalThis.fetch;
+  let requestCount = 0;
+  globalThis.fetch = async () => {
+    requestCount += 1;
+    return {
+      ok: true,
+      json: async () => ({
+        results: [{ username: "torvalds", totalCommits: 10 }],
+      }),
+    };
+  };
+
+  try {
+    assert.deepEqual(await getGithubCommitCounts(["torvalds"]), {
+      torvalds: 10,
+    });
+    assert.deepEqual(await getGithubCommitCounts(["https://github.com/torvalds"]), {
+      torvalds: 10,
+    });
+    assert.equal(requestCount, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+    clearGithubCommitCache();
   }
 });

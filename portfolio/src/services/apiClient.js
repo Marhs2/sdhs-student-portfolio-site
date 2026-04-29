@@ -118,7 +118,11 @@ const requestJson = async (path, options = {}) => {
   const timeoutId = setTimeout(() => {
     controller.abort(createTimeoutError(timeoutMs));
   }, timeoutMs);
-  const { timeoutMs: _timeoutMs, ...fetchOptions } = options;
+  const {
+    timeoutMs: _timeoutMs,
+    preservePublicCache: _preservePublicCache,
+    ...fetchOptions
+  } = options;
 
   let response;
   try {
@@ -149,13 +153,18 @@ const requestJson = async (path, options = {}) => {
 
 export const fetchJson = async (path, options = {}) => {
   const method = (options.method || "GET").toUpperCase();
+  const shouldPreservePublicCache = options.preservePublicCache === true;
 
   if (method !== "GET") {
-    clearApiCache();
+    if (!shouldPreservePublicCache) {
+      clearApiCache();
+    }
     try {
       return await requestJson(path, options);
     } finally {
-      clearApiCache();
+      if (!shouldPreservePublicCache) {
+        clearApiCache();
+      }
     }
   }
 
