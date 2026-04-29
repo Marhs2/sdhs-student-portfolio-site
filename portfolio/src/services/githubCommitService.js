@@ -1,7 +1,7 @@
 import { fetchJson } from "./apiClient.js";
 
 const GITHUB_PROFILE_PATTERN = /^https:\/\/(?:www\.)?github\.com\/([^/?#]+)\/?$/i;
-const GITHUB_COMMIT_BATCH_SIZE = 50;
+const GITHUB_COMMIT_BATCH_SIZE = 20;
 const commitCountCache = new Map();
 const commitCountCacheTtlMs = 5 * 60 * 1000;
 

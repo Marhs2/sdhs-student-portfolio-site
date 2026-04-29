@@ -64,6 +64,28 @@ class AuthContextTests(unittest.TestCase):
             },
         )
 
+    def test_context_blocks_banned_profile_before_returning_admin_context(self) -> None:
+        self.app.dependency_overrides[get_current_user] = lambda: {
+            "id": "banned-admin-1",
+            "email": "banned-admin@sdh.hs.kr",
+        }
+
+        with (
+            patch(
+                "backend.app.routers.auth.get_profile_by_email",
+                return_value={
+                    "id": 9,
+                    "email": "banned-admin@sdh.hs.kr",
+                    "isAdmin": True,
+                    "reviewStatus": "banned",
+                },
+            ),
+            patch("backend.app.routers.auth.is_configured_admin_email", return_value=False),
+        ):
+            response = self.client.get("/api/me/context")
+
+        self.assertEqual(response.status_code, 403)
+
 
 if __name__ == "__main__":
     unittest.main()

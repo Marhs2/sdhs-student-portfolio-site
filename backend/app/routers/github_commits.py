@@ -1,7 +1,10 @@
 from concurrent.futures import ThreadPoolExecutor
+from collections import deque
+from threading import BoundedSemaphore, RLock
+from time import monotonic
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
 from ..auth import require_server_admin
 from ..github_commits import (
@@ -16,7 +19,35 @@ from ..security_logging import log_security_event
 
 
 router = APIRouter(prefix="/api/github", tags=["github"])
-GITHUB_COMMIT_BATCH_WORKERS = 8
+GITHUB_COMMIT_BATCH_WORKERS = 4
+GITHUB_COMMIT_BATCH_MAX_USERNAMES = 20
+GITHUB_PUBLIC_LOOKUP_WINDOW_SECONDS = 60
+GITHUB_PUBLIC_LOOKUP_LIMIT = 40
+_github_batch_semaphore = BoundedSemaphore(2)
+_github_lookup_events_by_host: dict[str, deque[float]] = {}
+_github_lookup_lock = RLock()
+
+
+def _client_host(request: Request) -> str:
+    return request.client.host if request.client else ""
+
+
+def _require_public_github_lookup_budget(request: Request, lookup_count: int = 1) -> None:
+    client_host = _client_host(request)
+    if not client_host:
+        return
+    now = monotonic()
+    with _github_lookup_lock:
+        events = _github_lookup_events_by_host.setdefault(client_host, deque())
+        while events and now - events[0] > GITHUB_PUBLIC_LOOKUP_WINDOW_SECONDS:
+            events.popleft()
+        if len(events) + lookup_count > GITHUB_PUBLIC_LOOKUP_LIMIT:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="GitHub 활동 조회 요청이 많아 잠시 후 다시 시도해 주세요.",
+                headers={"Retry-After": str(GITHUB_PUBLIC_LOOKUP_WINDOW_SECONDS)},
+            )
+        events.extend(now for _ in range(lookup_count))
 
 
 def _handle_github_error(error: Exception) -> None:
@@ -43,25 +74,31 @@ def _lookup_github_commit_batch(usernames: list[str]) -> tuple[list[dict], list[
     if not usernames:
         return results, errors
 
-    max_workers = min(GITHUB_COMMIT_BATCH_WORKERS, len(usernames))
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_by_username = {
-            username: executor.submit(get_total_commits, username)
-            for username in usernames
-        }
-        for username in usernames:
-            try:
-                results.append(future_by_username[username].result())
-            except GithubCommitConfigurationError:
-                raise
-            except (GithubUserNotFoundError, GithubCommitLookupError, ValueError, httpx.HTTPError) as item_error:
-                errors.append(
-                    {
-                        "username": username,
-                        "reason": type(item_error).__name__,
-                        "message": str(item_error),
-                    },
-                )
+    if not _github_batch_semaphore.acquire(blocking=False):
+        raise GithubCommitLookupError("GitHub 활동 조회 요청이 많아 잠시 후 다시 시도해 주세요.")
+
+    try:
+        max_workers = min(GITHUB_COMMIT_BATCH_WORKERS, len(usernames))
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_by_username = {
+                username: executor.submit(get_total_commits, username)
+                for username in usernames
+            }
+            for username in usernames:
+                try:
+                    results.append(future_by_username[username].result())
+                except GithubCommitConfigurationError:
+                    raise
+                except (GithubUserNotFoundError, GithubCommitLookupError, ValueError, httpx.HTTPError) as item_error:
+                    errors.append(
+                        {
+                            "username": username,
+                            "reason": type(item_error).__name__,
+                            "message": str(item_error),
+                        },
+                    )
+    finally:
+        _github_batch_semaphore.release()
 
     return results, errors
 
@@ -131,7 +168,8 @@ def get_github_commit_status(
 
 
 @router.get("/commits/{username}")
-def get_github_commits(username: str) -> dict:
+def get_github_commits(username: str, request: Request) -> dict:
+    _require_public_github_lookup_budget(request)
     try:
         return get_total_commits(username)
     except Exception as error:
@@ -149,9 +187,13 @@ def get_github_commits(username: str) -> dict:
 
 
 @router.post("/commits")
-def post_github_commits(payload: GithubCommitBatchPayload) -> dict:
+def post_github_commits(payload: GithubCommitBatchPayload, request: Request) -> dict:
     try:
-        results, errors = _lookup_github_commit_batch(iter_unique_github_usernames(payload.usernames))
+        usernames = iter_unique_github_usernames(payload.usernames)
+        if len(usernames) > GITHUB_COMMIT_BATCH_MAX_USERNAMES:
+            raise ValueError(f"GitHub 사용자명은 한 번에 최대 {GITHUB_COMMIT_BATCH_MAX_USERNAMES}개까지 조회할 수 있습니다.")
+        _require_public_github_lookup_budget(request, len(usernames))
+        results, errors = _lookup_github_commit_batch(usernames)
         return {"results": results, "errors": errors}
     except Exception as error:
         log_security_event(

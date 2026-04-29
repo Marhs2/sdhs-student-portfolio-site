@@ -76,10 +76,11 @@ test("getGithubCommitCounts splits large user batches", async () => {
     const usernames = Array.from({ length: 51 }, (_, index) => `user-${index + 1}`);
     const result = await getGithubCommitCounts(usernames);
 
-    assert.equal(calls.length, 2);
-    assert.equal(calls[0].length, 50);
-    assert.equal(calls[1].length, 1);
-    assert.equal(result["user-51"], 1);
+    assert.equal(calls.length, 3);
+    assert.equal(calls[0].length, 20);
+    assert.equal(calls[1].length, 20);
+    assert.equal(calls[2].length, 11);
+    assert.equal(result["user-51"], 11);
   } finally {
     globalThis.fetch = originalFetch;
     clearGithubCommitCache();

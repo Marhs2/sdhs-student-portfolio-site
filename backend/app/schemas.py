@@ -116,4 +116,4 @@ class DepartmentPayload(BaseModel):
 
 
 class GithubCommitBatchPayload(BaseModel):
-    usernames: list[str] = Field(default_factory=list, min_length=1, max_length=50)
+    usernames: list[str] = Field(default_factory=list, min_length=1, max_length=20)

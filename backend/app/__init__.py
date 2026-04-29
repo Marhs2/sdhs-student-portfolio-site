@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 from collections import deque
-from ipaddress import ip_address
+from ipaddress import ip_address, ip_network
 from time import monotonic
 
 from fastapi import FastAPI
@@ -38,6 +38,17 @@ SENSITIVE_MUTATION_WINDOW_SECONDS = 60
 SENSITIVE_MUTATION_LIMIT = 30
 _auth_failure_events_by_host: dict[str, deque[float]] = {}
 _sensitive_mutation_events_by_host: dict[str, deque[float]] = {}
+TRUSTED_FORWARDING_NETWORKS = tuple(
+    ip_network(network)
+    for network in (
+        "127.0.0.0/8",
+        "10.0.0.0/8",
+        "172.16.0.0/12",
+        "192.168.0.0/16",
+        "::1/128",
+        "fc00::/7",
+    )
+)
 
 
 def _client_host_from_request(request: Request) -> str:
@@ -55,7 +66,7 @@ def _is_trusted_forwarding_source(client_host: str) -> bool:
         address = ip_address(client_host)
     except ValueError:
         return False
-    return address.is_loopback or address.is_private
+    return any(address in network for network in TRUSTED_FORWARDING_NETWORKS)
 
 
 def _recent_auth_failures(client_host: str, now: float) -> deque[float]:

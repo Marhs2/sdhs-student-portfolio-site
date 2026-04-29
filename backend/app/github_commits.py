@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
 import re
+from threading import BoundedSemaphore, RLock
+from time import monotonic
 from typing import Any
 
 import httpx
@@ -25,6 +27,10 @@ query($login: String!, $from: DateTime!, $to: DateTime!) {
 
 _settings = get_settings()
 _commit_cache = TtlCache(_settings.github_commit_cache_ttl_seconds)
+_github_api_semaphore = BoundedSemaphore(4)
+_negative_cache_lock = RLock()
+_negative_lookup_cache: dict[tuple[str, int], tuple[float, str, str]] = {}
+NEGATIVE_LOOKUP_CACHE_TTL_SECONDS = 300
 
 
 class GithubCommitLookupError(RuntimeError):
@@ -37,6 +43,36 @@ class GithubCommitConfigurationError(GithubCommitLookupError):
 
 class GithubUserNotFoundError(GithubCommitLookupError):
     pass
+
+
+def _read_negative_lookup_cache(cache_key: tuple[str, int]) -> None:
+    with _negative_cache_lock:
+        cached = _negative_lookup_cache.get(cache_key)
+        if not cached:
+            return
+        expires_at, error_type, message = cached
+        if monotonic() >= expires_at:
+            _negative_lookup_cache.pop(cache_key, None)
+            return
+
+    if error_type == "GithubUserNotFoundError":
+        raise GithubUserNotFoundError(message)
+    raise GithubCommitLookupError(message)
+
+
+def _store_negative_lookup(cache_key: tuple[str, int], error: Exception) -> None:
+    if isinstance(error, GithubCommitConfigurationError):
+        return
+    if not isinstance(error, (GithubUserNotFoundError, GithubCommitLookupError)):
+        return
+    if "요청이 많아" in str(error):
+        return
+    with _negative_cache_lock:
+        _negative_lookup_cache[cache_key] = (
+            monotonic() + NEGATIVE_LOOKUP_CACHE_TTL_SECONDS,
+            type(error).__name__,
+            str(error),
+        )
 
 
 def normalize_github_username(username: str) -> str:
@@ -75,28 +111,36 @@ def get_current_year_commit_range(now: datetime | None = None) -> dict[str, Any]
 def get_total_commits(username: str) -> dict[str, Any]:
     normalized_username = normalize_github_username(username)
     commit_range = get_current_year_commit_range()
+    cache_key = (normalized_username.lower(), commit_range["year"])
+    _read_negative_lookup_cache(cache_key)
 
     def fetch_commits() -> dict[str, Any]:
         settings = get_settings()
         if not settings.github_token:
             raise GithubCommitConfigurationError("GITHUB_TOKEN 환경변수가 필요합니다.")
 
-        response = httpx.post(
-            GITHUB_GRAPHQL_URL,
-            headers={
-                "Authorization": f"Bearer {settings.github_token}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "query": COMMIT_QUERY,
-                "variables": {
-                    "login": normalized_username,
-                    "from": commit_range["from"],
-                    "to": commit_range["to"],
+        if not _github_api_semaphore.acquire(blocking=False):
+            raise GithubCommitLookupError("GitHub 활동 조회 요청이 많아 잠시 후 다시 시도해 주세요.")
+
+        try:
+            response = httpx.post(
+                GITHUB_GRAPHQL_URL,
+                headers={
+                    "Authorization": f"Bearer {settings.github_token}",
+                    "Content-Type": "application/json",
                 },
-            },
-            timeout=httpx.Timeout(connect=2.0, read=8.0, write=4.0, pool=2.0),
-        )
+                json={
+                    "query": COMMIT_QUERY,
+                    "variables": {
+                        "login": normalized_username,
+                        "from": commit_range["from"],
+                        "to": commit_range["to"],
+                    },
+                },
+                timeout=httpx.Timeout(connect=2.0, read=8.0, write=4.0, pool=2.0),
+            )
+        finally:
+            _github_api_semaphore.release()
         if response.status_code >= 400:
             raise GithubCommitLookupError(
                 f"GitHub API HTTP {response.status_code}: {response.text[:200]}",
@@ -113,10 +157,11 @@ def get_total_commits(username: str) -> dict[str, Any]:
             "to": commit_range["to"],
         }
 
-    return _commit_cache.get_or_set(
-        (normalized_username.lower(), commit_range["year"]),
-        fetch_commits,
-    )
+    try:
+        return _commit_cache.get_or_set(cache_key, fetch_commits)
+    except (GithubUserNotFoundError, GithubCommitLookupError) as error:
+        _store_negative_lookup(cache_key, error)
+        raise
 
 
 def get_total_commits_for_users(usernames: list[str]) -> list[dict[str, Any]]:

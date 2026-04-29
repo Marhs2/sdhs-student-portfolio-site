@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 from backend.app import create_app  # noqa: E402
 from backend.app.auth import require_server_admin  # noqa: E402
 from backend.app import github_commits  # noqa: E402
+from backend.app.routers import github_commits as github_commit_router  # noqa: E402
 
 
 class GithubResponse:
@@ -49,6 +50,7 @@ def test_github_commit_lookup_uses_graphql_variables(monkeypatch) -> None:
     monkeypatch.setenv("GITHUB_TOKEN", "unit-token")
     get_settings.cache_clear()
     github_commits._commit_cache.clear()
+    github_commits._negative_lookup_cache.clear()
     monkeypatch.setattr(github_commits.httpx, "post", fake_post)
     monkeypatch.setattr(
         github_commits,
@@ -102,6 +104,39 @@ def test_github_username_validation_rejects_invalid_values() -> None:
         raise AssertionError("invalid username was accepted")
 
 
+def test_github_missing_user_lookup_is_negative_cached(monkeypatch) -> None:
+    calls = []
+
+    def fake_post(url, *, headers, json, timeout):
+        calls.append(json["variables"]["login"])
+        return GithubResponse({"data": {"user": None}})
+
+    monkeypatch.setenv("GITHUB_TOKEN", "unit-token")
+    get_settings.cache_clear()
+    github_commits._commit_cache.clear()
+    github_commits._negative_lookup_cache.clear()
+    monkeypatch.setattr(github_commits.httpx, "post", fake_post)
+    monkeypatch.setattr(
+        github_commits,
+        "get_current_year_commit_range",
+        lambda: {
+            "year": 2026,
+            "from": "2026-01-01T00:00:00Z",
+            "to": "2026-04-28T00:00:00Z",
+        },
+    )
+
+    for _ in range(2):
+        try:
+            github_commits.get_total_commits("missing-user")
+        except github_commits.GithubUserNotFoundError:
+            pass
+        else:
+            raise AssertionError("missing GitHub user was accepted")
+
+    assert calls == ["missing-user"]
+
+
 def test_github_commit_status_endpoint_reports_success(monkeypatch) -> None:
     app = create_app()
     app.dependency_overrides[require_server_admin] = lambda: {
@@ -140,6 +175,7 @@ def test_github_commit_status_endpoint_reports_success(monkeypatch) -> None:
 
 def test_github_commit_batch_returns_partial_results(monkeypatch) -> None:
     app = create_app()
+    github_commit_router._github_lookup_events_by_host.clear()
 
     def fake_get_total_commits(username: str) -> dict:
         if username == "missing-user":
@@ -163,6 +199,7 @@ def test_github_commit_batch_returns_partial_results(monkeypatch) -> None:
 
 def test_github_commit_batch_keeps_lookup_failures_partial(monkeypatch) -> None:
     app = create_app()
+    github_commit_router._github_lookup_events_by_host.clear()
 
     def fake_get_total_commits(username: str) -> dict:
         if username == "github-down":
@@ -190,6 +227,7 @@ def test_github_commit_batch_keeps_lookup_failures_partial(monkeypatch) -> None:
 
 def test_github_commit_batch_uses_bounded_parallel_lookup(monkeypatch) -> None:
     app = create_app()
+    github_commit_router._github_lookup_events_by_host.clear()
     active = 0
     max_active = 0
     lock = Lock()
@@ -217,4 +255,33 @@ def test_github_commit_batch_uses_bounded_parallel_lookup(monkeypatch) -> None:
     assert response.status_code == 200
     assert len(response.json()["results"]) == 12
     assert max_active > 1
-    assert max_active <= 8
+    assert max_active <= 4
+
+
+def test_github_commit_batch_rejects_large_public_fanout() -> None:
+    app = create_app()
+    github_commit_router._github_lookup_events_by_host.clear()
+
+    response = TestClient(app).post(
+        "/api/github/commits",
+        json={"usernames": [f"user-{index}" for index in range(21)]},
+    )
+
+    assert response.status_code == 422
+
+
+def test_github_commit_lookup_is_rate_limited_by_host(monkeypatch) -> None:
+    app = create_app()
+    github_commit_router._github_lookup_events_by_host.clear()
+    monkeypatch.setattr(github_commit_router, "GITHUB_PUBLIC_LOOKUP_LIMIT", 1)
+    monkeypatch.setattr(
+        "backend.app.routers.github_commits.get_total_commits",
+        lambda username: {"username": username, "totalCommits": 10},
+    )
+
+    client = TestClient(app)
+    assert client.get("/api/github/commits/one").status_code == 200
+    response = client.get("/api/github/commits/two")
+
+    assert response.status_code == 429
+    assert response.headers["retry-after"] == "60"

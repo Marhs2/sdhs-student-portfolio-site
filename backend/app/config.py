@@ -41,6 +41,17 @@ def _assert_local_only_supabase_project(supabase_url: str, allowed_origins: list
         )
 
 
+def _validate_allowed_origin_regex(value: str | None) -> str | None:
+    if not value:
+        return None
+    normalized = value.lower()
+    if "vercel\\.app" in normalized and ("[a-z" in normalized or ".*" in normalized):
+        raise RuntimeError(
+            "PORTFOLIO_ALLOWED_ORIGIN_REGEX must not wildcard the shared vercel.app namespace.",
+        )
+    return value
+
+
 @dataclass(frozen=True)
 class Settings:
     supabase_url: str
@@ -101,7 +112,9 @@ def get_settings() -> Settings:
     public_cache_stale_seconds = int(os.getenv("PORTFOLIO_PUBLIC_CACHE_STALE_SECONDS", "300"))
     github_token = os.getenv("GITHUB_TOKEN", "").strip()
     github_commit_cache_ttl_seconds = int(os.getenv("PORTFOLIO_GITHUB_COMMIT_CACHE_TTL_SECONDS", "900"))
-    allowed_origin_regex = os.getenv("PORTFOLIO_ALLOWED_ORIGIN_REGEX", "").strip() or None
+    allowed_origin_regex = _validate_allowed_origin_regex(
+        os.getenv("PORTFOLIO_ALLOWED_ORIGIN_REGEX", "").strip() or None,
+    )
     admin_emails = {
         email.strip().lower()
         for email in os.getenv("PORTFOLIO_ADMIN_EMAILS", "").split(",")

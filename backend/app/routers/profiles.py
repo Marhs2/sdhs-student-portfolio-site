@@ -24,6 +24,29 @@ from ..security_logging import log_security_event
 
 
 router = APIRouter(prefix="/api/profiles", tags=["profiles"])
+PUBLIC_PROFILE_HIDDEN_FIELDS = {"email", "isAdmin", "isVisible", "reviewStatus"}
+
+
+def _is_owner_or_admin(profile: dict | None, viewer: dict | None) -> bool:
+    return bool(
+        profile
+        and viewer
+        and (viewer.get("isAdmin") or viewer.get("email") == profile.get("email"))
+    )
+
+
+def _public_profile_payload(profile: dict) -> dict:
+    return {
+        key: value
+        for key, value in profile.items()
+        if key not in PUBLIC_PROFILE_HIDDEN_FIELDS
+    }
+
+
+def _profile_response_payload(profile: dict, viewer: dict | None = None) -> dict:
+    if _is_owner_or_admin(profile, viewer):
+        return dict(profile)
+    return _public_profile_payload(profile)
 
 
 @router.get("")
@@ -48,7 +71,7 @@ def get_profiles(
             include_private=False,
         )
         response.headers["X-Result-Count"] = str(len(profiles))
-        return profiles
+        return [_public_profile_payload(profile) for profile in profiles]
 
     page, has_more = list_profiles_page(
         school=school,
@@ -62,7 +85,7 @@ def get_profiles(
     response.headers["X-Result-Count"] = str(len(page))
     if has_more:
         response.headers["X-Next-Offset"] = str(offset + limit)
-    return page
+    return [_public_profile_payload(profile) for profile in page]
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -109,10 +132,8 @@ def get_profile_bundle(
         )
 
     owner_email = profile["email"]
-    profile = dict(profile)
-    profile.pop("email", None)
     return {
-        "profile": profile,
+        "profile": _profile_response_payload(profile, viewer),
         "html": get_profile_html(profile_id),
         "portfolioItems": list_portfolio_items_by_owner(owner_email, include_private=False),
     }
@@ -129,9 +150,7 @@ def get_profile(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="프로필을 찾을 수 없습니다.",
         )
-    profile = dict(profile)
-    profile.pop("email", None)
-    return profile
+    return _profile_response_payload(profile, viewer)
 
 
 @router.put("/{profile_id}")

@@ -246,6 +246,22 @@ def get_current_profile(user: dict[str, str] = Depends(get_current_user)) -> dic
     return profile
 
 
+def reject_banned_profile(profile: dict[str, Any] | None, user_email: str) -> None:
+    if profile and profile.get("reviewStatus") == "banned" and not is_configured_admin_email(user_email):
+        log_security_event(
+            "auth.banned_profile",
+            outcome="blocked",
+            severity="warning",
+            actor_email=user_email,
+            actor_profile_id=profile.get("id"),
+            reason="profile_is_banned",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="이 계정은 관리자에 의해 이용이 제한되었습니다.",
+        )
+
+
 def get_optional_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
 ) -> dict[str, str] | None:
@@ -265,19 +281,7 @@ def get_optional_profile(
     if is_configured_admin_email(user["email"]):
         profile["isAdmin"] = True
         profile["isConfigAdmin"] = True
-    elif profile.get("reviewStatus") == "banned":
-        log_security_event(
-            "auth.banned_profile",
-            outcome="blocked",
-            severity="warning",
-            actor_email=user["email"],
-            actor_profile_id=profile.get("id"),
-            reason="profile_is_banned",
-        )
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="이 계정은 관리자에 의해 이용이 제한되었습니다.",
-        )
+    reject_banned_profile(profile, user["email"])
     return profile
 
 

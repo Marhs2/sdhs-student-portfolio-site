@@ -47,6 +47,24 @@ class BannedAuthPolicyTests(unittest.TestCase):
 
         self.assertEqual(context.exception.status_code, 403)
 
+    def test_banned_admin_cannot_use_optional_private_profile_view(self) -> None:
+        with (
+            patch(
+                "backend.app.auth.get_profile_by_email",
+                return_value={
+                    "id": 9,
+                    "email": "banned-admin@sdh.hs.kr",
+                    "reviewStatus": "banned",
+                    "isAdmin": True,
+                },
+            ),
+            patch("backend.app.auth.is_configured_admin_email", return_value=False),
+        ):
+            with self.assertRaises(HTTPException) as context:
+                get_optional_profile({"email": "banned-admin@sdh.hs.kr"})
+
+        self.assertEqual(context.exception.status_code, 403)
+
 
 if __name__ == "__main__":
     unittest.main()

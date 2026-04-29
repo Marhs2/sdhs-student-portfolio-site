@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 
-from ..auth import get_current_profile, get_current_user, is_configured_admin_email
+from ..auth import get_current_profile, get_current_user, is_configured_admin_email, reject_banned_profile
 from ..repositories import get_profile_by_email
 
 router = APIRouter(prefix="/api/me", tags=["auth"])
@@ -10,6 +10,7 @@ router = APIRouter(prefix="/api/me", tags=["auth"])
 def get_my_context(user: dict = Depends(get_current_user)) -> dict:
     profile = get_profile_by_email(user["email"], include_private=True)
     is_config_admin = is_configured_admin_email(user["email"])
+    reject_banned_profile(profile, user["email"])
     if not profile:
         return {
             "email": user["email"],
