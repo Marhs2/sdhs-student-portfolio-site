@@ -808,9 +808,16 @@ onUnmounted(() => {
           <PortfolioItemForm
             v-model="newItemDraft"
             :busy="isSavingNewItem"
+            :disabled="!currentProfile?.id"
+            disabled-reason="기본 정보를 먼저 저장하면 프로젝트를 추가할 수 있습니다."
             submit-label="프로젝트 추가"
             @submit="handleCreatePortfolioItem"
           />
+
+          <div v-if="!portfolioItems.length" class="studio-page__project-empty">
+            <strong>아직 등록된 프로젝트가 없습니다.</strong>
+            <p>대표로 보여줄 작업 1개부터 추가해 보세요. 제목만 저장한 뒤 설명과 링크를 천천히 보강해도 됩니다.</p>
+          </div>
 
           <div v-if="portfolioItems.length" class="studio-page__project-list">
             <article v-for="item in sortedPortfolioItems" :key="item.id" class="studio-page__project-card">
@@ -1386,6 +1393,30 @@ onUnmounted(() => {
 .studio-page__project-list {
   display: grid;
   gap: 16px;
+}
+
+.studio-page__project-empty {
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-solid);
+}
+
+.studio-page__project-empty strong,
+.studio-page__project-empty p {
+  margin: 0;
+}
+
+.studio-page__project-empty strong {
+  color: var(--text-strong);
+}
+
+.studio-page__project-empty p {
+  max-width: 62ch;
+  color: var(--text-sub);
+  line-height: 1.6;
 }
 
 .studio-page__project-card {

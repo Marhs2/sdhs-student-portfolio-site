@@ -1,4 +1,6 @@
-export { parseTags } from "../../shared/catalog/tags.js";
+import { parseTags } from "../../shared/catalog/tags.js";
+
+export { parseTags };
 
 export const createEmptyProjectDraft = () => ({
   title: "",
@@ -47,6 +49,34 @@ export const buildProjectValidationState = (project = {}) => {
   return {
     canSubmit: true,
     message: "",
+  };
+};
+
+export const buildProjectCompletionState = (project = {}) => {
+  const hasTitle = Boolean(String(project.title || "").trim());
+  const hasDescription = String(project.description || "").trim().length >= 40;
+  const hasContribution = Boolean(String(project.contribution || "").trim());
+  const hasTags = parseTags(project.tagsText || "").length > 0;
+  const hasProofLink = [
+    project.githubUrl,
+    project.websiteUrl || project.customLinkUrl,
+    project.videoUrl,
+    project.imageUrl,
+  ].some((value) => Boolean(String(value || "").trim()));
+
+  const items = [
+    { key: "title", label: "프로젝트 이름", done: hasTitle },
+    { key: "description", label: "설명 40자 이상", done: hasDescription },
+    { key: "contribution", label: "기여도", done: hasContribution },
+    { key: "proof", label: "링크 또는 미디어", done: hasProofLink },
+    { key: "tags", label: "태그", done: hasTags },
+  ];
+  const doneCount = items.filter((item) => item.done).length;
+
+  return {
+    items,
+    doneCount,
+    percent: Math.round((doneCount / items.length) * 100),
   };
 };
 

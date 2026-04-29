@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   buildProfileFormDraft,
+  buildProjectCompletionState,
   buildProjectValidationState,
   buildStudioSections,
   buildVisibilityToggleCopy,
@@ -122,6 +123,25 @@ test("buildProjectValidationState validates website link URLs", () => {
       canSubmit: true,
       message: "",
     },
+  );
+});
+
+test("buildProjectCompletionState summarizes project draft quality", () => {
+  assert.deepEqual(buildProjectCompletionState({}).percent, 0);
+
+  const complete = buildProjectCompletionState({
+    title: "Demo",
+    description: "This project explains the problem, role, result, and why the work matters.",
+    contribution: "Frontend",
+    tagsText: "vue, portfolio",
+    githubUrl: "https://github.com/demo",
+  });
+
+  assert.equal(complete.percent, 100);
+  assert.equal(complete.doneCount, 5);
+  assert.deepEqual(
+    complete.items.map((item) => item.done),
+    [true, true, true, true, true],
   );
 });
 
