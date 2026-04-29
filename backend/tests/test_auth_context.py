@@ -29,6 +29,8 @@ class AuthContextTests(unittest.TestCase):
             response = self.client.get("/api/me/context")
 
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers["Cache-Control"], "no-store, private")
+        self.assertEqual(response.headers["Pragma"], "no-cache")
         self.assertEqual(
             response.json(),
             {

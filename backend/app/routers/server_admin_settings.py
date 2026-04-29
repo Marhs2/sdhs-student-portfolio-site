@@ -15,9 +15,7 @@ def get_server_admin_settings(admin: dict = Depends(require_server_admin)) -> di
     settings = get_settings()
     return {
         "allowedEmailDomain": ALLOWED_EMAIL_DOMAIN,
-        "currentAdminEmail": admin.get("email"),
         "currentAdminSource": "environment",
-        "configuredAdminEmails": sorted(settings.admin_emails),
         "departments": list_departments(),
         "maxUploadBytes": settings.max_upload_bytes,
         "controlsAdminGrants": True,

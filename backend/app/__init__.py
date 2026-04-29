@@ -51,6 +51,31 @@ TRUSTED_FORWARDING_NETWORKS = tuple(
         "fc00::/7",
     )
 )
+PRIVATE_API_CACHE_CONTROL = "no-store, private"
+
+
+def _append_vary_header(response: Response, value: str) -> None:
+    existing = {
+        entry.strip().lower()
+        for entry in response.headers.get("Vary", "").split(",")
+        if entry.strip()
+    }
+    if value.lower() in existing:
+        return
+    response.headers["Vary"] = (
+        f"{response.headers['Vary']}, {value}"
+        if response.headers.get("Vary")
+        else value
+    )
+
+
+def _is_private_api_response(request: Request) -> bool:
+    path = request.url.path
+    if not path.startswith("/api/"):
+        return False
+    if path.startswith(("/api/me/", "/api/admin/", "/api/server-admin/")):
+        return True
+    return request.headers.get("authorization", "").lower().startswith("bearer ")
 
 
 def _client_host_from_request(request: Request) -> str:
@@ -175,6 +200,12 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
         if request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https":
             response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+        if _is_private_api_response(request):
+            response.headers["Cache-Control"] = PRIVATE_API_CACHE_CONTROL
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+            if request.headers.get("authorization"):
+                _append_vary_header(response, "Authorization")
         return response
 
 

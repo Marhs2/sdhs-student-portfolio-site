@@ -49,6 +49,9 @@ class AdminSettingsTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertIn("departments", payload)
+        self.assertNotIn("currentAdminEmail", payload)
+        self.assertNotIn("configuredAdminEmails", payload)
+        self.assertEqual(response.headers["Cache-Control"], "no-store, private")
         self.assertIn("소프트웨어과", payload["departments"])
 
 

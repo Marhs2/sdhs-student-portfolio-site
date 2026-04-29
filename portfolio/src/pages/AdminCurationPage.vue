@@ -162,9 +162,9 @@ const configAdminText = computed(() => {
     return "서버 관리자 화면에서 확인";
   }
 
-  return adminSettings.value?.configuredAdminEmails?.length
-    ? adminSettings.value.configuredAdminEmails.join(", ")
-    : "환경변수에 등록된 관리자 없음";
+  return adminSettings.value?.controlsAdminGrants
+    ? "환경변수로 관리"
+    : "프로필 권한으로 관리";
 });
 const managedDepartments = computed(() => adminSettings.value?.departments || []);
 const githubStatusLabel = computed(() => {
