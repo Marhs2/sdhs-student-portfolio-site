@@ -183,33 +183,6 @@ Render Dashboard에 기존 Start Command가 남아 있으면 `render.yaml`보다
 
 프론트엔드와 백엔드를 별도 서비스로 배포하는 구성이 가장 단순합니다.
 
-Frontend service:
-
-- Build option: Dockerfile
-- Build context: `portfolio`
-- Dockerfile path: `portfolio/Dockerfile`
-- Public port: `8080`
-- Health check path: `/health`
-- Build arguments:
-  - `VITE_SUPABASE_URL`
-  - `VITE_SUPABASE_ANON_KEY`
-  - `VITE_API_BASE_URL`
-
-Backend service:
-
-- Build option: Dockerfile
-- Build context: `backend`
-- Dockerfile path: `backend/Dockerfile`
-- Public port: `8080`
-- Runtime variables:
-  - `SUPABASE_URL`
-  - `SUPABASE_SERVICE_ROLE_KEY`
-  - `PORTFOLIO_ALLOWED_ORIGINS`
-  - `PORTFOLIO_ALLOWED_ORIGIN_REGEX`
-  - `PORTFOLIO_ADMIN_EMAILS`
-  - `PORTFOLIO_MAX_UPLOAD_BYTES`
-  - `GITHUB_TOKEN`
-
 Buildpack을 계속 쓴다면 명령을 명시합니다.
 
 ```text

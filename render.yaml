@@ -15,6 +15,8 @@ services:
         sync: false
       - key: PORTFOLIO_ALLOWED_ORIGINS
         value: https://sdhs-student-portfolio-site.vercel.app,https://portfoilo-s-ite-rsgx.vercel.app,https://portfoilo-site-fullstack.vercel.app
+      - key: PORTFOLIO_ALLOWED_ORIGIN_REGEX
+        value: ""
       - key: PORTFOLIO_ADMIN_EMAILS
         sync: false
       - key: PORTFOLIO_MAX_UPLOAD_BYTES
