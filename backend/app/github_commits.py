@@ -26,7 +26,11 @@ query($login: String!, $from: DateTime!, $to: DateTime!) {
 """
 
 _settings = get_settings()
-_commit_cache = TtlCache(_settings.github_commit_cache_ttl_seconds)
+GITHUB_COMMIT_CACHE_MAX_ENTRIES = 2048
+_commit_cache = TtlCache(
+    _settings.github_commit_cache_ttl_seconds,
+    max_entries=GITHUB_COMMIT_CACHE_MAX_ENTRIES,
+)
 _github_api_semaphore = BoundedSemaphore(4)
 _negative_cache_lock = RLock()
 _negative_lookup_cache: dict[tuple[str, int], tuple[float, str, str]] = {}

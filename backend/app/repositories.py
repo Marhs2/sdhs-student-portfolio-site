@@ -34,9 +34,11 @@ PORTFOLIO_ITEM_COLUMNS = (
 )
 LEGACY_PORTFOLIO_ITEM_COLUMNS = "id,title,github_link,des,created_at,youtube_link,img,owner"
 _settings = get_settings()
+PUBLIC_CACHE_MAX_ENTRIES = 512
 _public_cache = TtlCache(
     _settings.public_cache_ttl_seconds,
     stale_seconds=_settings.public_cache_stale_seconds,
+    max_entries=PUBLIC_CACHE_MAX_ENTRIES,
 )
 
 
@@ -707,7 +709,12 @@ def list_portfolio_items_page(
     return _trim_page(items, limit)
 
 
-def list_portfolio_items_by_owner(owner_email: str, *, include_private: bool = False) -> list[dict[str, Any]]:
+def list_portfolio_items_by_owner(
+    owner_email: str,
+    *,
+    include_private: bool = False,
+    public_owner_verified: bool = False,
+) -> list[dict[str, Any]]:
     def select() -> list[dict[str, Any]]:
         response = _execute_with_missing_column_fallback(
             _build_portfolio_item_select_query(PORTFOLIO_ITEM_COLUMNS).eq("owner", owner_email),
@@ -724,7 +731,7 @@ def list_portfolio_items_by_owner(owner_email: str, *, include_private: bool = F
     if include_private:
         return select()
     normalized_owner = owner_email.strip().lower()
-    if normalized_owner not in _get_public_owner_emails():
+    if not public_owner_verified and normalized_owner not in _get_public_owner_emails():
         return []
     return _public_cache.get_or_set(
         ("portfolio-items-by-owner-public", normalized_owner),

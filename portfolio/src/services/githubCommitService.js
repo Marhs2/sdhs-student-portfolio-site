@@ -2,6 +2,7 @@ import { fetchJson } from "./apiClient.js";
 
 const GITHUB_PROFILE_PATTERN = /^https:\/\/(?:www\.)?github\.com\/([^/?#]+)\/?$/i;
 const GITHUB_COMMIT_BATCH_SIZE = 20;
+const GITHUB_COMMIT_BATCH_CONCURRENCY = 2;
 const commitCountCache = new Map();
 const commitCountCacheTtlMs = 5 * 60 * 1000;
 
@@ -41,11 +42,13 @@ export const getGithubCommitCounts = async (usernames = []) => {
     missingUsernames.push(username);
   });
 
-  const payloads = [];
-  const errors = [];
+  const batches = [];
   for (let index = 0; index < missingUsernames.length; index += GITHUB_COMMIT_BATCH_SIZE) {
-    const batch = missingUsernames.slice(index, index + GITHUB_COMMIT_BATCH_SIZE);
-    const payload = await fetchJson("/api/github/commits", {
+    batches.push(missingUsernames.slice(index, index + GITHUB_COMMIT_BATCH_SIZE));
+  }
+
+  const fetchBatch = (batch) =>
+    fetchJson("/api/github/commits", {
       method: "POST",
       preservePublicCache: true,
       headers: {
@@ -53,7 +56,23 @@ export const getGithubCommitCounts = async (usernames = []) => {
       },
       body: JSON.stringify({ usernames: batch }),
     });
-    payloads.push(payload);
+
+  const payloads = [];
+  let nextBatchIndex = 0;
+  const workerCount = Math.min(GITHUB_COMMIT_BATCH_CONCURRENCY, batches.length);
+
+  await Promise.all(
+    Array.from({ length: workerCount }, async () => {
+      while (nextBatchIndex < batches.length) {
+        const batch = batches[nextBatchIndex];
+        nextBatchIndex += 1;
+        payloads.push(await fetchBatch(batch));
+      }
+    }),
+  );
+
+  const errors = [];
+  for (const payload of payloads) {
     errors.push(...(payload.errors || []));
   }
 

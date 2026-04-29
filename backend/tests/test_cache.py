@@ -85,6 +85,35 @@ class TtlCacheTests(unittest.TestCase):
         self.assertEqual(calls, 1)
         self.assertEqual(results, [[1], [1], [1]])
 
+    def test_max_entries_evicts_oldest_cached_values(self) -> None:
+        cache = TtlCache(ttl_seconds=30, max_entries=2)
+        calls = 0
+
+        def factory() -> int:
+            nonlocal calls
+            calls += 1
+            return calls
+
+        self.assertEqual(cache.get_or_set("first", factory), 1)
+        self.assertEqual(cache.get_or_set("second", factory), 2)
+        self.assertEqual(cache.get_or_set("third", factory), 3)
+        self.assertEqual(cache.get_or_set("second", factory), 2)
+        self.assertEqual(cache.get_or_set("first", factory), 4)
+
+    def test_max_entries_prunes_expired_stale_values_first(self) -> None:
+        cache = TtlCache(ttl_seconds=-1, stale_seconds=-1, max_entries=2)
+
+        self.assertEqual(cache.get_or_set("expired", lambda: "old"), "old")
+        self.assertEqual(cache.get_or_set("fresh-a", lambda: "a"), "a")
+        self.assertEqual(cache.get_or_set("fresh-b", lambda: "b"), "b")
+
+        with self.assertRaises(RuntimeError):
+            cache.get_or_set("expired", lambda: (_ for _ in ()).throw(RuntimeError("expired")))
+
+    def test_max_entries_rejects_invalid_limits(self) -> None:
+        with self.assertRaises(ValueError):
+            TtlCache(ttl_seconds=30, max_entries=0)
+
 
 if __name__ == "__main__":
     unittest.main()

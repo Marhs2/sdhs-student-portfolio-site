@@ -1,5 +1,6 @@
 import os
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 os.environ.setdefault("SUPABASE_URL", "https://example.supabase.co")
@@ -10,6 +11,7 @@ from backend.app.repositories import (  # noqa: E402
     clear_public_cache,
     _filter_public_portfolio_items,
     _get_public_owner_emails,
+    list_portfolio_items_by_owner,
     _profile_insert_payload,
     _profile_update_payload,
     is_public_approved_profile,
@@ -190,11 +192,44 @@ class ProfileVisibilityPolicyTests(unittest.TestCase):
 
     def test_public_portfolio_items_by_owner_requires_visible_and_approved_owner(self) -> None:
         with patch("backend.app.repositories._get_public_owner_emails", return_value=set()):
-            from backend.app.repositories import list_portfolio_items_by_owner
-
             public_items = list_portfolio_items_by_owner("draft@sdh.hs.kr")
 
         self.assertEqual(public_items, [])
+
+    def test_public_portfolio_items_by_verified_owner_skip_owner_email_scan(self) -> None:
+        class FakeQuery:
+            def eq(self, *_args):
+                return self
+
+        rows = [
+            {
+                "id": 8,
+                "title": "Public project",
+                "owner": "approved@sdh.hs.kr",
+            },
+        ]
+
+        with (
+            patch("backend.app.repositories._build_portfolio_item_select_query", return_value=FakeQuery()),
+            patch(
+                "backend.app.repositories._execute_with_missing_column_fallback",
+                return_value=SimpleNamespace(data=rows),
+            ) as execute_query,
+            patch(
+                "backend.app.repositories._get_public_owner_emails",
+                side_effect=AssertionError("public owner list should not be loaded"),
+            ),
+        ):
+            public_items = list_portfolio_items_by_owner(
+                "approved@sdh.hs.kr",
+                public_owner_verified=True,
+            )
+
+        self.assertEqual(len(public_items), 1)
+        self.assertEqual(public_items[0]["id"], 8)
+        self.assertEqual(public_items[0]["title"], "Public project")
+        self.assertNotIn("ownerEmail", public_items[0])
+        self.assertEqual(execute_query.call_count, 1)
 
 
 if __name__ == "__main__":

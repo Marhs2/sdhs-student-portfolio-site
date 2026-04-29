@@ -6,9 +6,12 @@ import { buildStudentCardModel } from "../shared/catalog/studentProfileModel.js"
 import { extractGithubUsername, getGithubCommitCounts } from "../services/githubCommitService";
 import { JOB_OPTIONS } from "../services/jobs.js";
 import { listProfiles } from "../services/profileService";
-
-const PAGE_SIZE = 10;
-const DEFAULT_SORT = "githubCommits";
+import {
+  BROWSE_PAGE_SIZE,
+  DEFAULT_BROWSE_SORT,
+  browseSortLabels,
+  buildBrowseState,
+} from "../features/directory/browseDirectory";
 
 const isLoading = ref(true);
 const errorMessage = ref("");
@@ -24,102 +27,42 @@ const filters = reactive({
   search: "",
   jobs: [],
   department: "",
-  sort: DEFAULT_SORT,
+  sort: DEFAULT_BROWSE_SORT,
 });
 
-const uniqueValues = (key) =>
-  [...new Set(profiles.value.map((profile) => String(profile[key] || "").trim()).filter(Boolean))].sort();
-
+const browseState = computed(() =>
+  buildBrowseState({
+    profiles: profiles.value,
+    filters,
+    commitCounts: commitCounts.value,
+    currentPage: currentPage.value,
+    pageSize: BROWSE_PAGE_SIZE,
+  }),
+);
 const options = computed(() => ({
   jobs: JOB_OPTIONS,
-  departments: uniqueValues("department"),
+  departments: browseState.value.options.departments,
 }));
-
-const filteredProfiles = computed(() => {
-  const normalizedSearch = filters.search.trim().toLowerCase();
-
-  return profiles.value
-    .filter((profile) => {
-      const matchesSearch =
-        !normalizedSearch ||
-        [
-          profile.name,
-          profile.description,
-          profile.job,
-          profile.department,
-          ...(profile.tags || []),
-        ]
-          .join(" ")
-          .toLowerCase()
-          .includes(normalizedSearch);
-
-      return (
-        matchesSearch &&
-        (!filters.jobs.length || filters.jobs.includes(profile.job)) &&
-        (!filters.department || profile.department === filters.department)
-      );
-    })
-    .sort((left, right) => {
-      const leftRank = Number(left.featuredRank || 9999);
-      const rightRank = Number(right.featuredRank || 9999);
-      const leftDate = Date.parse(left.createdAt || "") || 0;
-      const rightDate = Date.parse(right.createdAt || "") || 0;
-      if (filters.sort === "latest") {
-        return rightDate - leftDate || leftRank - rightRank;
-      }
-      if (filters.sort === "name") {
-        return String(left.name || "").localeCompare(String(right.name || ""), "ko") || leftRank - rightRank;
-      }
-      if (filters.sort === "department") {
-        return String(left.department || "").localeCompare(String(right.department || ""), "ko") || leftRank - rightRank;
-      }
-      if (filters.sort === "githubCommits") {
-        const leftUser = extractGithubUsername(left.github).toLowerCase();
-        const rightUser = extractGithubUsername(right.github).toLowerCase();
-        const leftCommits = Number(commitCounts.value[leftUser] || 0);
-        const rightCommits = Number(commitCounts.value[rightUser] || 0);
-        return rightCommits - leftCommits || leftRank - rightRank || String(left.name || "").localeCompare(String(right.name || ""), "ko");
-      }
-      return leftRank - rightRank || rightDate - leftDate;
-    });
-});
-
-const filteredCount = computed(() => filteredProfiles.value.length);
-const totalPages = computed(() => Math.max(1, Math.ceil(filteredCount.value / PAGE_SIZE)));
-const paginatedCards = computed(() => {
-  const startIndex = (currentPage.value - 1) * PAGE_SIZE;
-  return filteredProfiles.value.slice(startIndex, startIndex + PAGE_SIZE).map((profile) => {
-    const username = extractGithubUsername(profile.github).toLowerCase();
-    return buildStudentCardModel({
-      ...profile,
-      githubCommitCount: commitCounts.value[username],
-    });
-  });
-});
-const pageStart = computed(() =>
-  filteredCount.value === 0 ? 0 : (currentPage.value - 1) * PAGE_SIZE + 1,
+const filteredProfiles = computed(() => browseState.value.filteredProfiles);
+const filteredCount = computed(() => browseState.value.filteredCount);
+const totalPages = computed(() => browseState.value.totalPages);
+const paginatedCards = computed(() =>
+  browseState.value.paginatedProfiles.map((profile) => buildStudentCardModel(profile)),
 );
-const pageEnd = computed(() => Math.min(currentPage.value * PAGE_SIZE, filteredCount.value));
+const pageStart = computed(() => browseState.value.pageStart);
+const pageEnd = computed(() => browseState.value.pageEnd);
 
 const hasActiveFilters = computed(() =>
-  Boolean(filters.search || filters.jobs.length || filters.department || filters.sort !== DEFAULT_SORT),
+  Boolean(filters.search || filters.jobs.length || filters.department || filters.sort !== DEFAULT_BROWSE_SORT),
 );
 
 const activeFilterChips = computed(() => {
   const chips = [];
   filters.jobs.forEach((job) => chips.push({ key: `job:${job}`, type: "job", value: job, label: job }));
   if (filters.department) chips.push({ key: "department", label: filters.department });
-  if (filters.sort !== DEFAULT_SORT) chips.push({ key: "sort", label: sortLabels[filters.sort] || "정렬" });
+  if (filters.sort !== DEFAULT_BROWSE_SORT) chips.push({ key: "sort", label: browseSortLabels[filters.sort] || "정렬" });
   return chips;
 });
-
-const sortLabels = {
-  featured: "추천순",
-  latest: "최신순",
-  name: "이름순",
-  department: "학과순",
-  githubCommits: "GitHub 활동순",
-};
 
 const loadCommitCounts = async () => {
   if (filters.sort !== "githubCommits" || isLoadingCommitCounts.value) {
@@ -170,7 +113,7 @@ const resetFilters = () => {
   filters.search = "";
   filters.jobs = [];
   filters.department = "";
-  filters.sort = DEFAULT_SORT;
+  filters.sort = DEFAULT_BROWSE_SORT;
   currentPage.value = 1;
 };
 
@@ -186,7 +129,7 @@ const removeFilter = (chip) => {
     return;
   }
   if (chip.key === "sort") {
-    filters.sort = DEFAULT_SORT;
+    filters.sort = DEFAULT_BROWSE_SORT;
     return;
   }
   filters[chip.key] = "";
@@ -211,6 +154,9 @@ watch(
 watch(filteredCount, () => {
   if (currentPage.value > totalPages.value) {
     currentPage.value = totalPages.value;
+  }
+  if (currentPage.value !== browseState.value.safePage) {
+    currentPage.value = browseState.value.safePage;
   }
 });
 onMounted(loadProfiles);
@@ -265,7 +211,7 @@ onMounted(loadProfiles);
           </option>
         </select>
 
-        <select v-model="filters.sort" name="sort-filter" :class="{ active: filters.sort !== DEFAULT_SORT }">
+        <select v-model="filters.sort" name="sort-filter" :class="{ active: filters.sort !== DEFAULT_BROWSE_SORT }">
           <option value="githubCommits">GitHub 활동순</option>
           <option value="featured">추천순</option>
           <option value="latest">최신순</option>
@@ -378,7 +324,15 @@ onMounted(loadProfiles);
         class="browse-card"
       >
         <div class="browse-card__image">
-          <img v-if="card.imageUrl" :src="card.imageUrl" :alt="card.title" loading="lazy" />
+          <img
+            v-if="card.imageUrl"
+            :src="card.imageUrl"
+            :alt="card.title"
+            width="82"
+            height="82"
+            loading="lazy"
+            decoding="async"
+          />
           <span v-else class="browse-card__initial">{{ card.title.slice(0, 1) }}</span>
         </div>
 

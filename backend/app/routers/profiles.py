@@ -13,6 +13,7 @@ from ..repositories import (
     get_profile_by_email,
     get_profile_by_id,
     get_profile_html,
+    is_public_approved_profile,
     list_profiles_page,
     list_portfolio_items_by_owner,
     list_profiles,
@@ -135,7 +136,11 @@ def get_profile_bundle(
     return {
         "profile": _profile_response_payload(profile, viewer),
         "html": get_profile_html(profile_id),
-        "portfolioItems": list_portfolio_items_by_owner(owner_email, include_private=False),
+        "portfolioItems": list_portfolio_items_by_owner(
+            owner_email,
+            include_private=False,
+            public_owner_verified=is_public_approved_profile(profile),
+        ),
     }
 
 
@@ -226,7 +231,11 @@ def get_profile_portfolio_items(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="프로필을 찾을 수 없습니다.",
         )
-    return list_portfolio_items_by_owner(profile["email"], include_private=False)
+    return list_portfolio_items_by_owner(
+        profile["email"],
+        include_private=False,
+        public_owner_verified=is_public_approved_profile(profile),
+    )
 
 
 @router.put("/{profile_id}/html")

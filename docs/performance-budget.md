@@ -12,14 +12,14 @@ Run:
 npm --prefix portfolio run build
 ```
 
-Current verified build after the first optimization pass:
+Current verified build after the browse compute-path optimization pass:
 
 | Asset | Budget | 2026-04-29 Current |
 | --- | ---: | ---: |
 | Main app entry gzip | <= 45 kB | 44.37 kB |
-| Auth/Supabase async chunk gzip | <= 58 kB | 55.80 kB |
-| Largest route chunk gzip | <= 14 kB | 12.21 kB |
-| Largest CSS chunk gzip | <= 3.5 kB | 2.98 kB |
+| Auth/Supabase async chunk gzip | <= 58 kB | 55.82 kB |
+| Largest route chunk gzip | <= 14 kB | 10.78 kB |
+| Largest CSS chunk gzip | <= 3.5 kB | 3.13 kB |
 
 Release rule: if any asset exceeds budget, either reduce it in the same change or add a short note in the PR/commit explaining why the increase is intentional.
 
@@ -45,3 +45,10 @@ Public API:
 - `python -m unittest discover -s backend/tests`
 - Manual smoke: browse, profile detail, studio edit, admin page.
 
+## 2026-04-29 Optimization Notes
+
+- Browse filtering and sorting now run through a tested pure utility that prepares profile search text, GitHub usernames, and commit counts before pagination/card rendering.
+- Browse card images keep lazy loading and now include async decoding plus fixed intrinsic dimensions to reduce decode pressure and layout ambiguity.
+- GitHub activity lookups still batch at 20 users, but large batches now overlap with bounded client concurrency of 2 so secondary sorting updates sooner without flooding the API.
+- Backend public profile detail paths now skip a redundant public-owner email scan after the requested profile has already been verified as visible and approved.
+- Backend in-memory TTL caches now support entry caps; public API cache is capped at 512 entries and GitHub commit cache at 2048 entries to bound long-running process memory growth.

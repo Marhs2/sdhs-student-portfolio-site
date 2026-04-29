@@ -7,6 +7,8 @@ import {
   getGithubCommitCounts,
 } from "./githubCommitService.js";
 
+const waitForMicrotasks = () => new Promise((resolve) => setTimeout(resolve, 0));
+
 test("extractGithubUsername accepts handles and GitHub profile URLs", () => {
   assert.equal(extractGithubUsername("@Marhs2"), "Marhs2");
   assert.equal(extractGithubUsername("https://github.com/torvalds"), "torvalds");
@@ -82,6 +84,61 @@ test("getGithubCommitCounts splits large user batches", async () => {
     assert.equal(calls[2].length, 11);
     assert.equal(result["user-51"], 11);
   } finally {
+    globalThis.fetch = originalFetch;
+    clearGithubCommitCache();
+  }
+});
+
+test("getGithubCommitCounts overlaps large batches with bounded concurrency", async () => {
+  clearGithubCommitCache();
+  const originalFetch = globalThis.fetch;
+  const requests = [];
+  let pending;
+
+  globalThis.fetch = async (_url, options) => {
+    const usernames = JSON.parse(options.body).usernames;
+    let resolveResponse;
+    const response = new Promise((resolve) => {
+      resolveResponse = resolve;
+    });
+    requests.push({
+      usernames,
+      resolve: () =>
+        resolveResponse({
+          ok: true,
+          json: async () => ({
+            results: usernames.map((username) => ({
+              username,
+              totalCommits: 1,
+            })),
+          }),
+        }),
+    });
+    return response;
+  };
+
+  try {
+    const usernames = Array.from({ length: 45 }, (_, index) => `parallel-${index + 1}`);
+    pending = getGithubCommitCounts(usernames);
+
+    await waitForMicrotasks();
+    assert.equal(requests.length, 2);
+
+    requests[0].resolve();
+    for (let attempt = 0; attempt < 5 && requests.length < 3; attempt += 1) {
+      await waitForMicrotasks();
+    }
+    assert.equal(requests.length, 3);
+
+    requests[1].resolve();
+    requests[2].resolve();
+    const result = await pending;
+    assert.equal(result["parallel-45"], 1);
+  } finally {
+    requests.forEach((request) => request.resolve());
+    if (pending) {
+      await pending.catch(() => {});
+    }
     globalThis.fetch = originalFetch;
     clearGithubCommitCache();
   }
