@@ -24,6 +24,25 @@ class AdminProfileRouteTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.app.dependency_overrides.clear()
 
+    def test_admin_profile_list_requires_authentication(self) -> None:
+        self.app.dependency_overrides.clear()
+
+        response = self.client.get("/api/admin/profiles?sort=featured")
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.headers["Cache-Control"], "no-store, private")
+
+    def test_admin_profile_update_requires_authentication(self) -> None:
+        self.app.dependency_overrides.clear()
+
+        response = self.client.put(
+            "/api/admin/profiles/3",
+            json={"reviewStatus": "approved", "isVisible": False, "featuredRank": 2},
+        )
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.headers["Cache-Control"], "no-store, private")
+
     def test_regular_admin_profile_list_hides_admin_flag(self) -> None:
         with patch(
             "backend.app.routers.admin_profiles.list_admin_profiles",

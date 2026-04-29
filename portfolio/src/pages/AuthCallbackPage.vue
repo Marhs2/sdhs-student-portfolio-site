@@ -6,11 +6,26 @@ import StatusView from "../shared/ui/StatusView.vue";
 import { clearAuthStateCache, getAuthState, waitForAuthSession } from "../services/authService";
 
 const router = useRouter();
+const clearTokenFragment = () => {
+  if (
+    typeof window === "undefined" ||
+    !/(^|&)(access_token|refresh_token|id_token)=/.test(window.location.hash.slice(1))
+  ) {
+    return;
+  }
+
+  window.history.replaceState(
+    null,
+    document.title,
+    `${window.location.pathname}${window.location.search}`,
+  );
+};
 const message = ref("로그인 정보를 확인하는 중입니다.");
 
 onMounted(async () => {
   try {
     await waitForAuthSession();
+    clearTokenFragment();
     clearAuthStateCache();
     const authState = await getAuthState({ force: true });
     if (authState.user) {

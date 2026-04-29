@@ -35,10 +35,13 @@ assertLocalOnlySupabaseProject();
 const sessionScopedStorage =
   typeof window !== "undefined" ? window.sessionStorage : undefined;
 
+export const supabaseAuthOptions = {
+  persistSession: true,
+  storage: sessionScopedStorage,
+  detectSessionInUrl: true,
+  flowType: "pkce",
+};
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    storage: sessionScopedStorage,
-    detectSessionInUrl: true,
-  },
+  auth: supabaseAuthOptions,
 });

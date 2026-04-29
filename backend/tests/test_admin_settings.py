@@ -18,6 +18,12 @@ class AdminSettingsTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.app.dependency_overrides.clear()
 
+    def test_admin_settings_requires_authentication(self) -> None:
+        response = self.client.get("/api/admin/settings")
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.headers["Cache-Control"], "no-store, private")
+
     def test_settings_returns_operational_admin_context(self) -> None:
         self.app.dependency_overrides[require_admin] = lambda: {
             "email": "admin@sdh.hs.kr",
