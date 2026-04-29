@@ -71,7 +71,7 @@ class Settings:
 
     @property
     def public_cache_control_header(self) -> str:
-        return "no-cache, no-store, must-revalidate"
+        return "public, max-age=15, stale-while-revalidate=30"
 
 
 @lru_cache(maxsize=1)

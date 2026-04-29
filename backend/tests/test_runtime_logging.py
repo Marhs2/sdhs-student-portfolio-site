@@ -36,6 +36,7 @@ def test_supabase_client_disables_http2() -> None:
     assert "def close_supabase_clients" in database_source
     assert "close_supabase_clients()" in app_source
     assert "auth.failure_rate_limited" in app_source
+    assert "http.sensitive_mutation_rate_limited" in app_source
     assert ".auth.get_user" not in auth_source
     assert "get_auth_user(credentials.credentials)" in auth_source
 
@@ -142,3 +143,32 @@ def test_repeated_auth_failures_are_rate_limited() -> None:
     assert response is not None
     assert response.status_code == 429
     assert response.headers["retry-after"] == str(app_module.AUTH_FAILURE_WINDOW_SECONDS)
+
+
+def test_repeated_sensitive_mutations_are_rate_limited() -> None:
+    app_module._sensitive_mutation_events_by_host.clear()
+    client = TestClient(create_app())
+
+    response = None
+    for _ in range(app_module.SENSITIVE_MUTATION_LIMIT + 1):
+        response = client.delete(
+            "/api/server-admin/profiles/7",
+            headers={"X-Forwarded-For": "198.51.100.30"},
+        )
+
+    assert response is not None
+    assert response.status_code == 429
+    assert response.headers["retry-after"] == str(app_module.SENSITIVE_MUTATION_WINDOW_SECONDS)
+
+
+def test_forwarded_for_is_ignored_for_untrusted_direct_clients() -> None:
+    request = type(
+        "Request",
+        (),
+        {
+            "headers": {"x-forwarded-for": "203.0.113.77"},
+            "client": type("Client", (), {"host": "198.51.100.44"})(),
+        },
+    )()
+
+    assert app_module._client_host_from_request(request) == "198.51.100.44"

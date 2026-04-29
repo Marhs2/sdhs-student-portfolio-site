@@ -112,6 +112,8 @@ const createTimeoutError = (timeoutMs) => {
   return error;
 };
 
+const shouldUseBrowserDefaultCache = (options = {}) => isPublicGetRequest(options);
+
 const requestJson = async (path, options = {}) => {
   const timeoutMs = Number(options.timeoutMs || defaultRequestTimeoutMs);
   const controller = new AbortController();
@@ -128,7 +130,7 @@ const requestJson = async (path, options = {}) => {
   try {
     response = await fetch(buildApiUrl(path), {
       ...fetchOptions,
-      cache: fetchOptions.cache || "no-store",
+      cache: fetchOptions.cache || (shouldUseBrowserDefaultCache(options) ? "default" : "no-store"),
       signal: fetchOptions.signal || controller.signal,
     });
   } catch (error) {

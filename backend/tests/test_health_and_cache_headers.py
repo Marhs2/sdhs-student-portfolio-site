@@ -24,7 +24,7 @@ class HealthAndCacheHeaderTests(unittest.TestCase):
         self.assertIn("camera=()", response.headers["permissions-policy"])
         self.assertTrue(response.headers["x-request-id"])
 
-    def test_public_profiles_response_disables_browser_cache(self) -> None:
+    def test_public_profiles_response_allows_short_browser_cache(self) -> None:
         client = TestClient(create_app())
 
         with patch("backend.app.routers.profiles.list_profiles", return_value=[]):
@@ -33,7 +33,7 @@ class HealthAndCacheHeaderTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.headers["cache-control"],
-            "no-cache, no-store, must-revalidate",
+            "public, max-age=15, stale-while-revalidate=30",
         )
 
     def test_public_profiles_support_limit_offset_without_changing_array_contract(self) -> None:

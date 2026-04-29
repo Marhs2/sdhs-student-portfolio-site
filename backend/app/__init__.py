@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 from collections import deque
+from ipaddress import ip_address
 from time import monotonic
 
 from fastapi import FastAPI
@@ -33,14 +34,28 @@ DANGEROUS_SERVER_CONTROL_PATH_PARTS = {
 }
 AUTH_FAILURE_WINDOW_SECONDS = 60
 AUTH_FAILURE_LIMIT = 25
+SENSITIVE_MUTATION_WINDOW_SECONDS = 60
+SENSITIVE_MUTATION_LIMIT = 30
 _auth_failure_events_by_host: dict[str, deque[float]] = {}
+_sensitive_mutation_events_by_host: dict[str, deque[float]] = {}
 
 
 def _client_host_from_request(request: Request) -> str:
+    direct_host = request.client.host if request.client else ""
     forwarded_for = request.headers.get("x-forwarded-for", "")
-    if forwarded_for:
+    if forwarded_for and _is_trusted_forwarding_source(direct_host):
         return forwarded_for.split(",", 1)[0].strip()
-    return request.client.host if request.client else ""
+    return direct_host
+
+
+def _is_trusted_forwarding_source(client_host: str) -> bool:
+    if client_host in {"", "testclient", "localhost"}:
+        return True
+    try:
+        address = ip_address(client_host)
+    except ValueError:
+        return False
+    return address.is_loopback or address.is_private
 
 
 def _recent_auth_failures(client_host: str, now: float) -> deque[float]:
@@ -59,6 +74,38 @@ def _is_auth_failure_limited(client_host: str) -> bool:
 def _record_auth_failure(client_host: str) -> None:
     if client_host:
         _recent_auth_failures(client_host, monotonic()).append(monotonic())
+
+
+def _recent_sensitive_mutations(client_host: str, now: float) -> deque[float]:
+    events = _sensitive_mutation_events_by_host.setdefault(client_host, deque())
+    while events and now - events[0] > SENSITIVE_MUTATION_WINDOW_SECONDS:
+        events.popleft()
+    return events
+
+
+def _is_sensitive_mutation_request(request: Request) -> bool:
+    if request.method not in {"POST", "PUT", "DELETE"}:
+        return False
+    path = request.url.path.lower()
+    if not path.startswith("/api/"):
+        return False
+    return (
+        request.method == "DELETE"
+        or path.startswith("/api/admin/")
+        or path.startswith("/api/server-admin/")
+        or path.startswith("/api/uploads/")
+    )
+
+
+def _is_sensitive_mutation_limited(client_host: str) -> bool:
+    if not client_host:
+        return False
+    return len(_recent_sensitive_mutations(client_host, monotonic())) >= SENSITIVE_MUTATION_LIMIT
+
+
+def _record_sensitive_mutation(client_host: str) -> None:
+    if client_host:
+        _recent_sensitive_mutations(client_host, monotonic()).append(monotonic())
 
 
 @asynccontextmanager
@@ -131,6 +178,27 @@ class SecurityAuditMiddleware(BaseHTTPMiddleware):
             response.headers.setdefault("X-Request-ID", request_id)
             response.headers.setdefault("Retry-After", str(AUTH_FAILURE_WINDOW_SECONDS))
             return response
+
+        if _is_sensitive_mutation_request(request):
+            if _is_sensitive_mutation_limited(client_host):
+                log_security_event(
+                    "http.sensitive_mutation_rate_limited",
+                    outcome="blocked",
+                    severity="warning",
+                    request_id=request_id,
+                    status_code=429,
+                    duration_ms=now_ms() - started_at,
+                    reason="too_many_recent_sensitive_mutations",
+                    **context,
+                )
+                response = JSONResponse(
+                    status_code=429,
+                    content={"detail": "민감한 작업 요청이 많아 잠시 후 다시 시도해 주세요."},
+                )
+                response.headers.setdefault("X-Request-ID", request_id)
+                response.headers.setdefault("Retry-After", str(SENSITIVE_MUTATION_WINDOW_SECONDS))
+                return response
+            _record_sensitive_mutation(client_host)
 
         try:
             response = await call_next(request)

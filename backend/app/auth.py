@@ -259,7 +259,26 @@ def get_optional_profile(
 ) -> dict[str, Any] | None:
     if not user:
         return None
-    return get_profile_by_email(user["email"], include_private=True)
+    profile = get_profile_by_email(user["email"], include_private=True)
+    if not profile:
+        return None
+    if is_configured_admin_email(user["email"]):
+        profile["isAdmin"] = True
+        profile["isConfigAdmin"] = True
+    elif profile.get("reviewStatus") == "banned":
+        log_security_event(
+            "auth.banned_profile",
+            outcome="blocked",
+            severity="warning",
+            actor_email=user["email"],
+            actor_profile_id=profile.get("id"),
+            reason="profile_is_banned",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="이 계정은 관리자에 의해 이용이 제한되었습니다.",
+        )
+    return profile
 
 
 def can_view_profile(

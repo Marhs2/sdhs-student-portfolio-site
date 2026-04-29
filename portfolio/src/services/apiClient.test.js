@@ -89,12 +89,12 @@ test("fetchJson retries timed out GET requests once before failing", async () =>
   }
 });
 
-test("fetchJson sends API requests with browser cache disabled", async () => {
+test("fetchJson lets public GET requests use browser cache semantics", async () => {
   clearApiCache();
   const originalFetch = globalThis.fetch;
 
   globalThis.fetch = async (_url, options = {}) => {
-    assert.equal(options.cache, "no-store");
+    assert.equal(options.cache, "default");
     return {
       ok: true,
       json: async () => ({ ok: true }),
@@ -169,6 +169,29 @@ test("fetchJson can preserve public GET cache for read-only POST requests", asyn
       body: "{}",
     });
     assert.deepEqual(await fetchJson("/api/profiles"), { version: 1 });
+  } finally {
+    globalThis.fetch = originalFetch;
+    clearApiCache();
+  }
+});
+
+test("fetchJson keeps authenticated API requests out of browser cache", async () => {
+  clearApiCache();
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = async (_url, options = {}) => {
+    assert.equal(options.cache, "no-store");
+    return {
+      ok: true,
+      json: async () => ({ ok: true }),
+    };
+  };
+
+  try {
+    assert.deepEqual(
+      await fetchJson("/api/admin/settings", { headers: { Authorization: "Bearer token" } }),
+      { ok: true },
+    );
   } finally {
     globalThis.fetch = originalFetch;
     clearApiCache();
