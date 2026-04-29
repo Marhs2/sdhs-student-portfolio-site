@@ -11,6 +11,7 @@ from backend.app.repositories import (  # noqa: E402
     _filter_public_portfolio_items,
     _get_public_owner_emails,
     _profile_insert_payload,
+    _profile_update_payload,
     is_public_approved_profile,
     list_profiles,
     list_profiles_page,
@@ -112,6 +113,11 @@ class ProfileVisibilityPolicyTests(unittest.TestCase):
                 {"email": "hidden@sdh.hs.kr", "isVisible": False, "reviewStatus": "approved"},
             ),
         )
+        self.assertFalse(
+            is_public_approved_profile(
+                {"email": "banned@sdh.hs.kr", "isVisible": False, "reviewStatus": "banned"},
+            ),
+        )
 
     def test_created_profiles_are_public_by_default(self) -> None:
         payload = _profile_insert_payload(
@@ -145,6 +151,18 @@ class ProfileVisibilityPolicyTests(unittest.TestCase):
             extended_schema=True,
         )
 
+        self.assertFalse(payload["is_visible"])
+
+    def test_banned_profile_updates_force_private_visibility(self) -> None:
+        payload = _profile_update_payload(
+            {
+                "reviewStatus": "banned",
+                "isVisible": True,
+            },
+            extended_schema=True,
+        )
+
+        self.assertEqual(payload["review_status"], "banned")
         self.assertFalse(payload["is_visible"])
 
     def test_public_portfolio_items_require_public_approved_owner(self) -> None:

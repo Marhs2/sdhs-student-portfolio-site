@@ -268,6 +268,9 @@ def _profile_update_payload(payload: dict[str, Any], *, extended_schema: bool = 
         if "isAdmin" in payload:
             raw_update["isAdmin"] = payload["isAdmin"]
 
+    if payload.get("reviewStatus") == "banned":
+        raw_update["is_visible"] = False
+
     return {key: value for key, value in raw_update.items() if value is not None}
 
 

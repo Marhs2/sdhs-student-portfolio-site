@@ -63,6 +63,17 @@ class AdminProfileSchemaTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             AdminProfileUpdatePayload(reviewStatus="published")
 
+    def test_admin_profile_update_accepts_banned_review_status(self) -> None:
+        payload = AdminProfileUpdatePayload(reviewStatus="banned", isVisible=False)
+
+        self.assertEqual(
+            payload.model_dump(exclude_unset=True),
+            {
+                "reviewStatus": "banned",
+                "isVisible": False,
+            },
+        )
+
     def test_admin_profile_update_rejects_zero_featured_rank(self) -> None:
         with self.assertRaises(ValidationError):
             AdminProfileUpdatePayload(featuredRank=0)

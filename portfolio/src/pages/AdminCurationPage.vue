@@ -17,6 +17,7 @@ import {
 import {
   addServerAdminDepartment,
   checkGithubCommitStatus,
+  deleteServerAdminProfile,
   deleteServerAdminDepartment,
   getAdminSettings,
   getServerAdminSettings,
@@ -120,6 +121,7 @@ const quickFilters = computed(() => [
   { key: "needsWork", label: "보완 필요", count: summary.value.needsWork },
   { key: "exposedDrafts", label: "공개 초안", count: summary.value.exposedDrafts },
   { key: "hidden", label: "비공개", count: summary.value.hidden },
+  { key: "banned", label: "밴", count: summary.value.banned },
   {
     key: "missingGithub",
     label: "GitHub 없음",
@@ -153,6 +155,7 @@ const showAccessGate = computed(() =>
 );
 const reviewedCount = computed(() => summary.value.review);
 const hiddenCount = computed(() => summary.value.hidden);
+const bannedCount = computed(() => summary.value.banned);
 const exposedDraftCount = computed(() => summary.value.exposedDrafts);
 const configAdminText = computed(() => {
   if (!props.serverMode) {
@@ -288,6 +291,85 @@ const handleSaveSelected = async () => {
   }
 
   await saveAdminRows(rowsToSave, (count) => `선택한 변경사항 ${count}개를 저장했습니다.`);
+};
+
+const handleBanSelected = () => {
+  applyBulkPatch(
+    { reviewStatus: "banned", isVisible: false },
+    "선택 항목을 밴 상태로 변경했습니다. 저장해야 적용됩니다.",
+  );
+};
+
+const handleDeleteProfile = async (row) => {
+  if (!props.serverMode || !row?.id) {
+    showError("삭제는 서버 관리자 화면에서만 가능합니다.");
+    return;
+  }
+
+  const confirmation = window.prompt(
+    `${row.name || row.email || "프로필"} 프로필과 프로젝트를 모두 삭제합니다. 계속하려면 DELETE를 입력하세요.`,
+  );
+  if (confirmation !== "DELETE") {
+    return;
+  }
+
+  saveStates[row.id] = {
+    state: "saving",
+    message: "삭제 중...",
+  };
+  try {
+    await deleteServerAdminProfile(row.id);
+    adminProfiles.value = adminProfiles.value.filter((profile) => profile.id !== row.id);
+    delete drafts[row.id];
+    delete selectedIds[row.id];
+    delete saveStates[row.id];
+    showSuccess("프로필을 삭제했습니다.");
+  } catch (error) {
+    saveStates[row.id] = {
+      state: "error",
+      message: error.message || "삭제 실패",
+    };
+    showError(error.message || "프로필을 삭제하지 못했습니다.");
+  }
+};
+
+const handleDeleteSelected = async () => {
+  if (!props.serverMode) {
+    showError("삭제는 서버 관리자 화면에서만 가능합니다.");
+    return;
+  }
+  if (selectedRows.value.length === 0) {
+    showError("삭제할 프로필을 선택해 주세요.");
+    return;
+  }
+
+  const confirmation = window.prompt(
+    `선택한 ${selectedRows.value.length}개 프로필과 프로젝트를 모두 삭제합니다. 계속하려면 DELETE를 입력하세요.`,
+  );
+  if (confirmation !== "DELETE") {
+    return;
+  }
+
+  bulkSaveState.value = "saving";
+  try {
+    const ids = selectedRows.value.map((row) => row.id);
+    for (const id of ids) {
+      saveStates[id] = {
+        state: "saving",
+        message: "삭제 중...",
+      };
+      await deleteServerAdminProfile(id);
+      delete drafts[id];
+      delete selectedIds[id];
+      delete saveStates[id];
+    }
+    adminProfiles.value = adminProfiles.value.filter((profile) => !ids.includes(profile.id));
+    bulkSaveState.value = "success";
+    showSuccess(`${ids.length}개 프로필을 삭제했습니다.`);
+  } catch (error) {
+    bulkSaveState.value = "error";
+    showError(error.message || "선택 프로필을 삭제하지 못했습니다.");
+  }
 };
 
 const handleAddDepartment = async () => {
@@ -437,6 +519,10 @@ onUnmounted(() => {
             <span>비공개</span>
             <strong>{{ hiddenCount }}</strong>
           </article>
+          <article class="admin-page__metric admin-page__metric--danger">
+            <span>밴</span>
+            <strong>{{ bannedCount }}</strong>
+          </article>
           <article class="admin-page__metric">
             <span>보완 필요</span>
             <strong>{{ summary.needsWork }}</strong>
@@ -570,6 +656,7 @@ onUnmounted(() => {
                   <option value="draft">초안</option>
                   <option value="review">검토</option>
                   <option value="approved">승인</option>
+                  <option value="banned">밴</option>
                 </select>
               </label>
 
@@ -622,9 +709,26 @@ onUnmounted(() => {
               type="button"
               class="admin-page__ghost-button"
               :disabled="selectedCount === 0"
-              @click="applyBulkPatch({ isVisible: false }, '선택 항목을 비공개로 변경했습니다.')"
+              @click="applyBulkPatch({ isVisible: false }, '선택 항목을 비공개로 변경했습니다. 저장해야 적용됩니다.')"
             >
               비공개
+            </button>
+            <button
+              type="button"
+              class="admin-page__danger-button"
+              :disabled="selectedCount === 0"
+              @click="handleBanSelected"
+            >
+              선택 밴
+            </button>
+            <button
+              v-if="props.serverMode"
+              type="button"
+              class="admin-page__danger-button"
+              :disabled="selectedCount === 0 || bulkSaveState === 'saving'"
+              @click="handleDeleteSelected"
+            >
+              선택 삭제
             </button>
             <button
               type="button"
@@ -701,6 +805,7 @@ onUnmounted(() => {
             :key="row.id"
             class="admin-page__row"
             :data-selected="Boolean(selectedIds[row.id])"
+            :data-banned="row.reviewStatus === 'banned'"
           >
             <label class="admin-page__row-select" :aria-label="`${row.name || '프로필'} 선택`">
               <input v-model="selectedIds[row.id]" :name="`admin-select-${row.id}`" type="checkbox" />
@@ -768,6 +873,7 @@ onUnmounted(() => {
                     <option value="draft">초안</option>
                     <option value="review">검토</option>
                     <option value="approved">승인</option>
+                    <option value="banned">밴</option>
                   </select>
                 </label>
 
@@ -832,6 +938,25 @@ onUnmounted(() => {
                   <span class="admin-page__toggle-track" aria-hidden="true"></span>
                   <span>관리자</span>
                 </label>
+              </div>
+
+              <div class="admin-page__risk-actions">
+                <button
+                  type="button"
+                  class="admin-page__ghost-button"
+                  @click="applyAdminDraftPatch(drafts, [row], { reviewStatus: drafts[row.id].reviewStatus === 'banned' ? 'review' : 'banned', isVisible: false })"
+                >
+                  {{ drafts[row.id].reviewStatus === "banned" ? "밴 해제" : "밴 처리" }}
+                </button>
+                <button
+                  v-if="props.serverMode"
+                  type="button"
+                  class="admin-page__danger-button"
+                  :disabled="saveStates[row.id]?.state === 'saving'"
+                  @click="handleDeleteProfile(row)"
+                >
+                  삭제
+                </button>
               </div>
 
               <div class="admin-page__actions">
@@ -1039,7 +1164,7 @@ onUnmounted(() => {
 }
 
 .admin-page__metrics {
-  grid-template-columns: minmax(160px, 1.4fr) repeat(6, minmax(108px, 1fr));
+  grid-template-columns: minmax(160px, 1.4fr) repeat(7, minmax(96px, 1fr));
   gap: 12px;
 }
 
@@ -1062,6 +1187,14 @@ onUnmounted(() => {
   background:
     linear-gradient(135deg, rgba(0, 113, 227, 0.12), rgba(255, 255, 255, 0.92)),
     var(--bg-surface-solid);
+}
+
+.admin-page__metric--danger {
+  background: var(--danger-soft);
+}
+
+.admin-page__metric--danger strong {
+  color: var(--danger-text);
 }
 
 .admin-page__metric span {
@@ -1351,6 +1484,11 @@ onUnmounted(() => {
   box-shadow: 0 0 0 3px var(--brand-ring), var(--shadow-sm);
 }
 
+.admin-page__row[data-banned="true"] {
+  border-color: rgba(153, 27, 27, 0.28);
+  background: linear-gradient(180deg, var(--danger-soft), var(--bg-surface-solid) 140px);
+}
+
 .admin-page__row-select {
   display: grid;
   align-content: start;
@@ -1447,6 +1585,11 @@ onUnmounted(() => {
   color: var(--warning-text);
 }
 
+.admin-page__status-pill[data-status="banned"] {
+  background: var(--danger-soft);
+  color: var(--danger-text);
+}
+
 .admin-page__visibility-pill {
   background: rgba(29, 29, 31, 0.06);
   color: var(--text-main);
@@ -1506,7 +1649,8 @@ onUnmounted(() => {
 }
 
 .admin-page__row-link,
-.admin-page__save-button {
+.admin-page__save-button,
+.admin-page__danger-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1642,6 +1786,31 @@ onUnmounted(() => {
   background: var(--brand-main);
   color: #fff;
   min-width: 96px;
+}
+
+.admin-page__danger-button {
+  border: 1px solid rgba(153, 27, 27, 0.28);
+  background: var(--danger-soft);
+  color: var(--danger-text);
+}
+
+.admin-page__danger-button:hover:not(:disabled) {
+  border-color: var(--danger-text);
+  background: var(--danger-text);
+  color: var(--danger-soft);
+}
+
+.admin-page__danger-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.admin-page__risk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  padding-top: 2px;
 }
 
 .admin-page__save-button:hover {

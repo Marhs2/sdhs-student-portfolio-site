@@ -18,6 +18,7 @@ export const normalizeProfile = (profile = {}) => ({
     ? Number(profile.featuredRank)
     : 9999,
   reviewStatus: profile.reviewStatus || "draft",
+  isBanned: profile.reviewStatus === "banned",
   isVisible: profile.isVisible !== false,
   github: profile.github || "",
   email: profile.email || "",

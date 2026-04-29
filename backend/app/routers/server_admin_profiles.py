@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from ..auth import require_server_admin
-from ..repositories import list_admin_profiles, update_profile
+from ..repositories import delete_profile, list_admin_profiles, update_profile
 from ..schemas import ServerAdminProfileUpdatePayload
 from ..security_logging import log_security_event
 
@@ -48,3 +48,24 @@ def put_server_admin_profile(
         ),
     )
     return updated
+
+
+@router.delete("/{profile_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_server_admin_profile(
+    profile_id: int,
+    admin: dict = Depends(require_server_admin),
+) -> None:
+    deleted = delete_profile(profile_id)
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="프로필을 찾을 수 없습니다.",
+        )
+    log_security_event(
+        "server_admin.profile_deleted",
+        outcome="allowed",
+        actor_email=admin.get("email"),
+        actor_profile_id=admin.get("id"),
+        target_type="profile",
+        target_id=profile_id,
+    )

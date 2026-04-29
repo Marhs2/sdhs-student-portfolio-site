@@ -100,7 +100,7 @@ class PortfolioItemUpdatePayload(BaseModel):
 
 class AdminProfileUpdatePayload(BaseModel):
     featuredRank: int | None = Field(default=None, ge=1)
-    reviewStatus: Literal["draft", "review", "approved"] | None = None
+    reviewStatus: Literal["draft", "review", "approved", "banned"] | None = None
     isVisible: bool | None = None
 
 

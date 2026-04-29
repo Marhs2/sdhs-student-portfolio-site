@@ -48,6 +48,7 @@ test("buildAdminSummary counts operational curation states", () => {
     approved: 1,
     review: 1,
     draft: 0,
+    banned: 0,
     hidden: 1,
     admins: 0,
     needsWork: 1,
@@ -77,6 +78,14 @@ test("buildAdminRows searches operational fields beyond visible copy", () => {
         tags: ["security"],
         reviewStatus: "draft",
         isVisible: true,
+      },
+      {
+        id: 4,
+        name: "Banned",
+        description: "Removed from public access",
+        reviewStatus: "banned",
+        isVisible: false,
+        featuredRank: 4,
       },
     ],
     { search: "school-lee security" },
@@ -134,6 +143,16 @@ test("buildAdminRows applies quick operational filters", () => {
   assert.deepEqual(
     buildAdminRows(profiles, { quickView: "hidden" }).map((row) => row.id),
     [2],
+  );
+  assert.deepEqual(
+    buildAdminRows(
+      [
+        ...profiles,
+        { id: 4, name: "Banned", reviewStatus: "banned", isVisible: false },
+      ],
+      { quickView: "banned" },
+    ).map((row) => row.id),
+    [4],
   );
 });
 

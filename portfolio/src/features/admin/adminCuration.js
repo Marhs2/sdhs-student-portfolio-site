@@ -18,6 +18,7 @@ const REVIEW_STATUS_LABELS = {
   draft: "초안",
   review: "검토",
   approved: "승인",
+  banned: "밴",
 };
 
 export const createAdminDraft = (profile = {}) => ({
@@ -67,7 +68,11 @@ export const getAdminProfileIssues = (profile = {}) => {
   }
 
   if (profile.reviewStatus !== "approved") {
-    issues.push(profile.reviewStatus === "review" ? "검토 대기" : "초안");
+    if (profile.reviewStatus === "banned") {
+      issues.push("밴");
+    } else {
+      issues.push(profile.reviewStatus === "review" ? "검토 대기" : "초안");
+    }
   }
 
   return issues;
@@ -89,6 +94,7 @@ export const buildAdminSummary = (profiles = []) => {
     approved: profiles.filter((profile) => profile.reviewStatus === "approved").length,
     review: profiles.filter((profile) => profile.reviewStatus === "review").length,
     draft: profiles.filter((profile) => profile.reviewStatus === "draft").length,
+    banned: profiles.filter((profile) => profile.reviewStatus === "banned").length,
     hidden: profiles.filter((profile) => !profile.isVisible).length,
     admins: profiles.filter((profile) => profile.isAdmin).length,
     needsWork: profiles.filter((profile) => getProfileCompleteness(profile).percent < 70).length,
@@ -154,6 +160,9 @@ export const buildAdminRows = (profiles = [], filters = {}) => {
       }
       if (quickView === "admins") {
         return Boolean(profile.isAdmin);
+      }
+      if (quickView === "banned") {
+        return profile.reviewStatus === "banned";
       }
 
       return true;

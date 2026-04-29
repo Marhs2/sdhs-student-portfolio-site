@@ -230,6 +230,19 @@ def get_current_profile(user: dict[str, str] = Depends(get_current_user)) -> dic
     if is_configured_admin_email(user["email"]):
         profile["isAdmin"] = True
         profile["isConfigAdmin"] = True
+    elif profile.get("reviewStatus") == "banned":
+        log_security_event(
+            "auth.banned_profile",
+            outcome="blocked",
+            severity="warning",
+            actor_email=user["email"],
+            actor_profile_id=profile.get("id"),
+            reason="profile_is_banned",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="이 계정은 관리자에 의해 이용이 제한되었습니다.",
+        )
     return profile
 
 

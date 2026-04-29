@@ -74,6 +74,15 @@ export const updateServerAdminProfile = async (profileId, payload) => {
   return normalizeProfile(profile);
 };
 
+export const deleteServerAdminProfile = async (profileId) => {
+  const headers = await getAuthHeaders();
+
+  await fetchJson(`/api/server-admin/profiles/${profileId}`, {
+    method: "DELETE",
+    headers,
+  });
+};
+
 export const getServerAdminSettings = async () => {
   const headers = await getAuthHeaders();
   return fetchJson("/api/server-admin/settings", { headers });
