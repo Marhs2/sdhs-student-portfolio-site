@@ -1,5 +1,16 @@
 import { fetchJson } from "./apiClient";
-import { getAuthHeaders } from "./authService";
+
+let authServicePromise = null;
+
+const loadAuthService = () => {
+  authServicePromise ||= import("./authService");
+  return authServicePromise;
+};
+
+const getAuthHeaders = async (...args) => {
+  const authService = await loadAuthService();
+  return authService.getAuthHeaders(...args);
+};
 
 const normalizeTags = (tags) =>
   Array.isArray(tags) ? tags.map((tag) => String(tag).trim()).filter(Boolean) : [];

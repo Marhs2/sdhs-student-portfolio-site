@@ -101,6 +101,8 @@ npm run backend:dev
 | `PORTFOLIO_PUBLIC_CACHE_STALE_SECONDS` | No | `300` | Supabase 장애 시 stale 공개 응답 유지 시간 |
 | `GITHUB_TOKEN` | Optional | empty | GitHub 커밋 수 조회용 서버 토큰 |
 | `PORTFOLIO_GITHUB_COMMIT_CACHE_TTL_SECONDS` | No | `900` | GitHub 커밋 수 조회 캐시 TTL |
+| `PORTFOLIO_KEEPALIVE_URL` | No | empty | 설정하면 백엔드가 이 URL을 주기적으로 GET 호출. Render Free sleep 완화용 `/health` URL |
+| `PORTFOLIO_KEEPALIVE_INTERVAL_SECONDS` | No | `600` | keepalive 호출 간격. 최소 60초로 제한 |
 
 `PORTFOLIO_ADMIN_EMAILS`에 등록된 `@sdh.hs.kr` 계정은 DB의 `isAdmin` 값과 별개로 서버 관리자 화면에 접근할 수 있습니다.
 
@@ -138,6 +140,8 @@ PORTFOLIO_ADMIN_EMAILS=<local test admin email>
 PORTFOLIO_MAX_UPLOAD_BYTES=1048576
 GITHUB_TOKEN=<github token for commit count lookup>
 PORTFOLIO_GITHUB_COMMIT_CACHE_TTL_SECONDS=900
+PORTFOLIO_KEEPALIVE_URL=
+PORTFOLIO_KEEPALIVE_INTERVAL_SECONDS=600
 ```
 
 ## 테스트와 빌드
@@ -170,7 +174,9 @@ npm run frontend:build
 - Root Directory: `backend`
 - Build Command: `pip install -r requirements.txt`
 - Start Command: `python -m uvicorn main:app --host 0.0.0.0 --port $PORT`
-- Keepalive: `.github/workflows/render-keepalive.yml` pings `/health` every 10 minutes as a temporary Render Free spin-down mitigation. Use a paid Render instance for production uptime.
+- Health Check Path: `/health`
+- Backend keepalive: `PORTFOLIO_KEEPALIVE_URL` is set to the deployed `/health` URL in `render.yaml`, so the running backend periodically calls its own health endpoint.
+- Keepalive fallback: `.github/workflows/render-keepalive.yml` also pings `/health` every 10 minutes as an external mitigation.
 - Required env vars:
   - `SUPABASE_URL`
   - `SUPABASE_SERVICE_ROLE_KEY`

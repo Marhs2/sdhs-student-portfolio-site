@@ -1,6 +1,17 @@
 import { fetchJson } from "./apiClient";
-import { getAuthHeaders } from "./authService";
 import { normalizeProfile } from "./profileService";
+
+let authServicePromise = null;
+
+const loadAuthService = () => {
+  authServicePromise ||= import("./authService");
+  return authServicePromise;
+};
+
+const getAuthHeaders = async (...args) => {
+  const authService = await loadAuthService();
+  return authService.getAuthHeaders(...args);
+};
 
 const privateGetCache = new Map();
 const inFlightPrivateGets = new Map();

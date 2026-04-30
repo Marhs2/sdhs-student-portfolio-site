@@ -1,11 +1,13 @@
-from contextlib import asynccontextmanager
+import asyncio
 from collections import deque
+from contextlib import asynccontextmanager, suppress
 from ipaddress import ip_address, ip_network
 from threading import RLock
 from time import monotonic
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import httpx
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -52,6 +54,22 @@ TRUSTED_FORWARDING_NETWORKS = tuple(
     )
 )
 PRIVATE_API_CACHE_CONTROL = "no-store, private"
+
+
+async def _run_keepalive_loop(url: str, interval_seconds: int) -> None:
+    interval_seconds = max(60, interval_seconds)
+    async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
+        while True:
+            await asyncio.sleep(interval_seconds)
+            try:
+                await client.get(url)
+            except Exception as exc:
+                log_security_event(
+                    "keepalive.health_ping_failed",
+                    outcome="error",
+                    severity="warning",
+                    reason=type(exc).__name__,
+                )
 
 
 def _append_vary_header(response: Response, value: str) -> None:
@@ -185,9 +203,23 @@ def _record_sensitive_mutation(client_host: str) -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    settings = get_settings()
+    keepalive_task = None
+    if settings.keepalive_url:
+        keepalive_task = asyncio.create_task(
+            _run_keepalive_loop(
+                settings.keepalive_url,
+                settings.keepalive_interval_seconds,
+            ),
+        )
+
     try:
         yield
     finally:
+        if keepalive_task:
+            keepalive_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await keepalive_task
         close_supabase_clients()
 
 

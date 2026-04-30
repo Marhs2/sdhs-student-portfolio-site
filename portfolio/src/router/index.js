@@ -1,12 +1,17 @@
 import { createRouter, createWebHistory } from "vue-router";
 
-import { getAuthState } from "../services/authService";
-
 const AdminCurationPage = () => import("../pages/AdminCurationPage.vue");
 const AuthCallbackPage = () => import("../pages/AuthCallbackPage.vue");
 const BrowsePage = () => import("../pages/BrowsePage.vue");
 const StudioPage = () => import("../pages/StudioPage.vue");
 const StudentProfilePage = () => import("../pages/StudentProfilePage.vue");
+
+let authServicePromise = null;
+
+const loadAuthService = () => {
+  authServicePromise ||= import("../services/authService");
+  return authServicePromise;
+};
 
 const routes = [
   {
@@ -99,6 +104,7 @@ router.beforeEach(async (to) => {
   }
 
   try {
+    const { getAuthState } = await loadAuthService();
     const authState = await getAuthState();
     const hasAccess = to.meta.requiresServerAdmin
       ? authState.isConfigAdmin

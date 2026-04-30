@@ -64,6 +64,8 @@ class Settings:
     public_cache_stale_seconds: int
     github_token: str
     github_commit_cache_ttl_seconds: int
+    keepalive_url: str
+    keepalive_interval_seconds: int
     image_bucket: str = "user-img"
 
     @property
@@ -112,6 +114,8 @@ def get_settings() -> Settings:
     public_cache_stale_seconds = int(os.getenv("PORTFOLIO_PUBLIC_CACHE_STALE_SECONDS", "300"))
     github_token = os.getenv("GITHUB_TOKEN", "").strip()
     github_commit_cache_ttl_seconds = int(os.getenv("PORTFOLIO_GITHUB_COMMIT_CACHE_TTL_SECONDS", "900"))
+    keepalive_url = os.getenv("PORTFOLIO_KEEPALIVE_URL", "").strip()
+    keepalive_interval_seconds = int(os.getenv("PORTFOLIO_KEEPALIVE_INTERVAL_SECONDS", "600"))
     allowed_origin_regex = _validate_allowed_origin_regex(
         os.getenv("PORTFOLIO_ALLOWED_ORIGIN_REGEX", "").strip() or None,
     )
@@ -132,4 +136,6 @@ def get_settings() -> Settings:
         public_cache_stale_seconds=public_cache_stale_seconds,
         github_token=github_token,
         github_commit_cache_ttl_seconds=github_commit_cache_ttl_seconds,
+        keepalive_url=keepalive_url,
+        keepalive_interval_seconds=keepalive_interval_seconds,
     )

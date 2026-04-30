@@ -12,14 +12,17 @@ jobs:
   ping:
     name: Ping backend health endpoint
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 3
     steps:
       - name: Request Render health endpoint
         env:
           HEALTH_URL: https://sdhs-student-portfolio-site.onrender.com/health
         run: |
+          echo "Pinging $HEALTH_URL at $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
           curl --fail --silent --show-error --location \
-            --max-time 20 \
-            --retry 2 \
+            --max-time 90 \
+            --retry 3 \
+            --retry-all-errors \
             --retry-delay 5 \
+            --user-agent "sdhs-portfolio-keepalive/1.0" \
             "$HEALTH_URL"

@@ -89,6 +89,28 @@ class HealthAndCacheHeaderTests(unittest.TestCase):
         self.assertEqual(response.headers["x-result-count"], "2")
         self.assertEqual(response.headers["x-next-offset"], "2")
 
+    def test_keepalive_settings_are_configurable(self) -> None:
+        previous_url = os.environ.get("PORTFOLIO_KEEPALIVE_URL")
+        previous_interval = os.environ.get("PORTFOLIO_KEEPALIVE_INTERVAL_SECONDS")
+        os.environ["PORTFOLIO_KEEPALIVE_URL"] = "https://example.com/health"
+        os.environ["PORTFOLIO_KEEPALIVE_INTERVAL_SECONDS"] = "300"
+        get_settings.cache_clear()
+
+        try:
+            settings = get_settings()
+            self.assertEqual(settings.keepalive_url, "https://example.com/health")
+            self.assertEqual(settings.keepalive_interval_seconds, 300)
+        finally:
+            if previous_url is None:
+                os.environ.pop("PORTFOLIO_KEEPALIVE_URL", None)
+            else:
+                os.environ["PORTFOLIO_KEEPALIVE_URL"] = previous_url
+            if previous_interval is None:
+                os.environ.pop("PORTFOLIO_KEEPALIVE_INTERVAL_SECONDS", None)
+            else:
+                os.environ["PORTFOLIO_KEEPALIVE_INTERVAL_SECONDS"] = previous_interval
+            get_settings.cache_clear()
+
     def test_rejects_spoofable_shared_vercel_origin_regex(self) -> None:
         previous = os.environ.get("PORTFOLIO_ALLOWED_ORIGIN_REGEX")
         os.environ["PORTFOLIO_ALLOWED_ORIGIN_REGEX"] = (
