@@ -24,6 +24,7 @@ npm run preview
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your_anon_key
 VITE_API_BASE_URL=http://127.0.0.1:8000
+VITE_ENABLE_SUPABASE_IMAGE_TRANSFORMS=false
 ```
 
 `VITE_API_BASE_URL`은 FastAPI 백엔드 주소입니다. 배포 빌드에서는 Vercel 또는 Northflank의 build-time environment variable로 넣어야 합니다.

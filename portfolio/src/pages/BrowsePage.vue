@@ -12,6 +12,7 @@ import {
   browseSortLabels,
   buildBrowseState,
 } from "../features/directory/browseDirectory";
+import { buildDisplayImageSrcset, toDisplayImageUrl } from "../shared/media/imageUrls.js";
 
 const isLoading = ref(true);
 const errorMessage = ref("");
@@ -326,7 +327,9 @@ onMounted(loadProfiles);
         <div class="browse-card__image">
           <img
             v-if="card.imageUrl"
-            :src="card.imageUrl"
+            :src="toDisplayImageUrl(card.imageUrl, { width: 164 })"
+            :srcset="buildDisplayImageSrcset(card.imageUrl, [82, 164, 246])"
+            sizes="82px"
             :alt="card.title"
             width="82"
             height="82"

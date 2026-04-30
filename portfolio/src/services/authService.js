@@ -6,7 +6,7 @@ import { supabase } from "./supabaseClient";
 let cachedAuthState = null;
 let cachedAuthStateAt = 0;
 let inFlightAuthState = null;
-const authStateCacheTtlMs = 3000;
+const authStateCacheTtlMs = 30000;
 const authOperationTimeoutMs = 10000;
 
 const createAuthTimeoutError = () => {
@@ -131,16 +131,12 @@ const loadAuthState = async () => {
 };
 
 export const getAuthState = async ({ force = false } = {}) => {
-  if (
-    !force &&
-    cachedAuthState &&
-    Date.now() - cachedAuthStateAt < authStateCacheTtlMs
-  ) {
-    return cachedAuthState;
-  }
-
   if (!force && inFlightAuthState) {
     return inFlightAuthState;
+  }
+
+  if (!force && cachedAuthState && Date.now() - cachedAuthStateAt < authStateCacheTtlMs) {
+    return cachedAuthState;
   }
 
   inFlightAuthState = loadAuthState()

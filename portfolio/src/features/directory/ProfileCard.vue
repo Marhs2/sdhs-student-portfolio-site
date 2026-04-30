@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
+import { buildDisplayImageSrcset, toDisplayImageUrl } from "../../shared/media/imageUrls.js";
 
 const props = defineProps({
   profile: {
@@ -26,7 +27,9 @@ const githubUrl = computed(() => {
       <div class="profile-card-v2__avatar">
         <img
           v-if="profile.imageUrl"
-          :src="profile.imageUrl"
+          :src="toDisplayImageUrl(profile.imageUrl, { width: 192 })"
+          :srcset="buildDisplayImageSrcset(profile.imageUrl, [96, 192, 288])"
+          sizes="96px"
           :alt="`${profile.name} 프로필 이미지`"
           loading="lazy"
           decoding="async"

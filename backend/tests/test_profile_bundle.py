@@ -40,6 +40,10 @@ class ProfileBundleTests(unittest.TestCase):
             response = self.client.get("/api/profiles/1/bundle")
 
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.headers["cache-control"],
+            "public, max-age=15, stale-while-revalidate=30",
+        )
         self.assertEqual(response.json()["profile"]["id"], 1)
         self.assertNotIn("email", response.json()["profile"])
         self.assertNotIn("isAdmin", response.json()["profile"])
@@ -70,9 +74,13 @@ class ProfileBundleTests(unittest.TestCase):
                 return_value=[],
             ),
         ):
-            response = self.client.get("/api/profiles/1/bundle")
+            response = self.client.get(
+                "/api/profiles/1/bundle",
+                headers={"Authorization": "Bearer test.token.value"},
+            )
 
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers["cache-control"], "no-store, private")
         self.assertEqual(
             response.json()["profile"],
             {

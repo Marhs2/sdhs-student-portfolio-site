@@ -2,6 +2,42 @@ import { fetchJson } from "./apiClient";
 import { getAuthHeaders } from "./authService";
 import { normalizeProfile } from "./profileService";
 
+const privateGetCache = new Map();
+const inFlightPrivateGets = new Map();
+const privateGetCacheTtlMs = 10000;
+
+const clearPrivateGetCache = () => {
+  privateGetCache.clear();
+  inFlightPrivateGets.clear();
+};
+
+const fetchPrivateJson = async (path) => {
+  const cached = privateGetCache.get(path);
+  if (cached && Date.now() - cached.createdAt < privateGetCacheTtlMs) {
+    return cached.payload;
+  }
+
+  if (inFlightPrivateGets.has(path)) {
+    return inFlightPrivateGets.get(path);
+  }
+
+  const request = getAuthHeaders()
+    .then((headers) => fetchJson(path, { headers }))
+    .then((payload) => {
+      privateGetCache.set(path, {
+        createdAt: Date.now(),
+        payload,
+      });
+      return payload;
+    })
+    .finally(() => {
+      inFlightPrivateGets.delete(path);
+    });
+
+  inFlightPrivateGets.set(path, request);
+  return request;
+};
+
 const buildQueryString = (params = {}) => {
   const searchParams = new URLSearchParams();
   const keyMap = {
@@ -21,9 +57,8 @@ const buildQueryString = (params = {}) => {
 };
 
 export const listAdminProfiles = async (params = {}) => {
-  const headers = await getAuthHeaders();
   const query = buildQueryString(params);
-  const profiles = await fetchJson(`/api/admin/profiles${query}`, { headers });
+  const profiles = await fetchPrivateJson(`/api/admin/profiles${query}`);
   return profiles.map(normalizeProfile);
 };
 
@@ -44,19 +79,18 @@ export const updateAdminProfile = async (profileId, payload) => {
     headers,
     body: JSON.stringify(curationPayload),
   });
+  clearPrivateGetCache();
 
   return normalizeProfile(profile);
 };
 
 export const getAdminSettings = async () => {
-  const headers = await getAuthHeaders();
-  return fetchJson("/api/admin/settings", { headers });
+  return fetchPrivateJson("/api/admin/settings");
 };
 
 export const listServerAdminProfiles = async (params = {}) => {
-  const headers = await getAuthHeaders();
   const query = buildQueryString(params);
-  const profiles = await fetchJson(`/api/server-admin/profiles${query}`, { headers });
+  const profiles = await fetchPrivateJson(`/api/server-admin/profiles${query}`);
   return profiles.map(normalizeProfile);
 };
 
@@ -70,6 +104,7 @@ export const updateServerAdminProfile = async (profileId, payload) => {
     headers,
     body: JSON.stringify(payload),
   });
+  clearPrivateGetCache();
 
   return normalizeProfile(profile);
 };
@@ -81,11 +116,11 @@ export const deleteServerAdminProfile = async (profileId) => {
     method: "DELETE",
     headers,
   });
+  clearPrivateGetCache();
 };
 
 export const getServerAdminSettings = async () => {
-  const headers = await getAuthHeaders();
-  return fetchJson("/api/server-admin/settings", { headers });
+  return fetchPrivateJson("/api/server-admin/settings");
 };
 
 export const addServerAdminDepartment = async (name) => {
@@ -93,20 +128,24 @@ export const addServerAdminDepartment = async (name) => {
     "Content-Type": "application/json",
   });
 
-  return fetchJson("/api/server-admin/settings/departments", {
+  const result = await fetchJson("/api/server-admin/settings/departments", {
     method: "POST",
     headers,
     body: JSON.stringify({ name }),
   });
+  clearPrivateGetCache();
+  return result;
 };
 
 export const deleteServerAdminDepartment = async (name) => {
   const headers = await getAuthHeaders();
 
-  return fetchJson(`/api/server-admin/settings/departments/${encodeURIComponent(name)}`, {
+  const result = await fetchJson(`/api/server-admin/settings/departments/${encodeURIComponent(name)}`, {
     method: "DELETE",
     headers,
   });
+  clearPrivateGetCache();
+  return result;
 };
 
 export const checkGithubCommitStatus = async (username = "torvalds") => {

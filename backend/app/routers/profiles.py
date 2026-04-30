@@ -1,3 +1,5 @@
+from concurrent.futures import ThreadPoolExecutor
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
 from ..auth import (
@@ -25,6 +27,22 @@ from ..security_logging import log_security_event
 
 router = APIRouter(prefix="/api/profiles", tags=["profiles"])
 PUBLIC_PROFILE_HIDDEN_FIELDS = {"email", "isAdmin", "isVisible", "reviewStatus"}
+_profile_asset_executor = ThreadPoolExecutor(max_workers=8)
+
+
+def _set_public_cache_header(response: Response, viewer: dict | None) -> None:
+    if not viewer:
+        response.headers["Cache-Control"] = get_settings().public_cache_control_header
+
+
+def _load_profile_assets(profile_id: int, owner_email: str) -> tuple[str, list[dict]]:
+    html_future = _profile_asset_executor.submit(get_profile_html, profile_id)
+    items_future = _profile_asset_executor.submit(
+        list_portfolio_items_by_owner,
+        owner_email,
+        include_private=False,
+    )
+    return html_future.result(), items_future.result()
 
 
 def _is_owner_or_admin(profile: dict | None, viewer: dict | None) -> bool:
@@ -122,6 +140,7 @@ def post_profile(
 @router.get("/{profile_id}/bundle")
 def get_profile_bundle(
     profile_id: int,
+    response: Response,
     viewer: dict | None = Depends(get_optional_profile),
 ) -> dict:
     profile = get_profile_by_id(profile_id, include_private=True)
@@ -132,19 +151,19 @@ def get_profile_bundle(
         )
 
     owner_email = profile["email"]
+    html, portfolio_items = _load_profile_assets(profile_id, owner_email)
+    _set_public_cache_header(response, viewer)
     return {
         "profile": _profile_response_payload(profile, viewer),
-        "html": get_profile_html(profile_id),
-        "portfolioItems": list_portfolio_items_by_owner(
-            owner_email,
-            include_private=False,
-        ),
+        "html": html,
+        "portfolioItems": portfolio_items,
     }
 
 
 @router.get("/{profile_id}")
 def get_profile(
     profile_id: int,
+    response: Response,
     viewer: dict | None = Depends(get_optional_profile),
 ) -> dict:
     profile = get_profile_by_id(profile_id, include_private=True)
@@ -153,6 +172,7 @@ def get_profile(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="프로필을 찾을 수 없습니다.",
         )
+    _set_public_cache_header(response, viewer)
     return _profile_response_payload(profile, viewer)
 
 
@@ -207,6 +227,7 @@ def delete_profile_route(
 @router.get("/{profile_id}/html")
 def get_profile_html_content(
     profile_id: int,
+    response: Response,
     viewer: dict | None = Depends(get_optional_profile),
 ) -> dict:
     profile = get_profile_by_id(profile_id, include_private=True)
@@ -215,12 +236,14 @@ def get_profile_html_content(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="프로필을 찾을 수 없습니다.",
         )
+    _set_public_cache_header(response, viewer)
     return {"html": get_profile_html(profile_id)}
 
 
 @router.get("/{profile_id}/portfolio-items")
 def get_profile_portfolio_items(
     profile_id: int,
+    response: Response,
     viewer: dict | None = Depends(get_optional_profile),
 ) -> list[dict]:
     profile = get_profile_by_id(profile_id, include_private=True)
@@ -229,6 +252,7 @@ def get_profile_portfolio_items(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="프로필을 찾을 수 없습니다.",
         )
+    _set_public_cache_header(response, viewer)
     return list_portfolio_items_by_owner(
         profile["email"],
         include_private=False,

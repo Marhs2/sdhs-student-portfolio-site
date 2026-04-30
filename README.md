@@ -83,6 +83,7 @@ npm run backend:dev
 | `VITE_SUPABASE_URL` | Yes | Supabase project URL |
 | `VITE_SUPABASE_ANON_KEY` | Yes | Browser에서 사용하는 Supabase anon key |
 | `VITE_API_BASE_URL` | Recommended | FastAPI 서버 URL. 로컬은 `http://127.0.0.1:8000` |
+| `VITE_ENABLE_SUPABASE_IMAGE_TRANSFORMS` | No | Supabase image transform endpoint가 활성화된 프로젝트에서만 `true`로 설정 |
 
 배포 환경에서 `VITE_API_BASE_URL`을 비워두면 프론트엔드는 기본 프로덕션 API URL을 사용합니다. 단, 새 백엔드 URL로 옮기면 Vercel 환경변수도 함께 갱신해야 합니다. Vite 환경변수는 빌드 시점에 번들에 포함되므로 runtime variable만 바꿔서는 기존 빌드에 반영되지 않습니다.
 
@@ -95,7 +96,7 @@ npm run backend:dev
 | `PORTFOLIO_ALLOWED_ORIGINS` | Recommended | `http://127.0.0.1:5173,http://localhost:5173` | CORS 허용 origin 목록 |
 | `PORTFOLIO_ALLOWED_ORIGIN_REGEX` | No | empty | 추가 허용 origin 정규식. 공유 `vercel.app` 전체 wildcard는 차단됨 |
 | `PORTFOLIO_ADMIN_EMAILS` | Recommended | empty | 서버 관리자 이메일 목록. 쉼표로 구분 |
-| `PORTFOLIO_MAX_UPLOAD_BYTES` | No | `5242880` | 업로드 이미지 최대 크기 |
+| `PORTFOLIO_MAX_UPLOAD_BYTES` | No | `1048576` | 업로드 이미지 최대 크기 |
 | `PORTFOLIO_PUBLIC_CACHE_TTL_SECONDS` | No | `30` | 공개 목록 서버 캐시 TTL |
 | `PORTFOLIO_PUBLIC_CACHE_STALE_SECONDS` | No | `300` | Supabase 장애 시 stale 공개 응답 유지 시간 |
 | `GITHUB_TOKEN` | Optional | empty | GitHub 커밋 수 조회용 서버 토큰 |
@@ -134,7 +135,7 @@ SUPABASE_SERVICE_ROLE_KEY=<rotated test service role key>
 PORTFOLIO_ALLOWED_ORIGINS=http://127.0.0.1:5173,http://localhost:5173
 PORTFOLIO_ALLOWED_ORIGIN_REGEX=
 PORTFOLIO_ADMIN_EMAILS=<local test admin email>
-PORTFOLIO_MAX_UPLOAD_BYTES=5242880
+PORTFOLIO_MAX_UPLOAD_BYTES=1048576
 GITHUB_TOKEN=<github token for commit count lookup>
 PORTFOLIO_GITHUB_COMMIT_CACHE_TTL_SECONDS=900
 ```
@@ -169,6 +170,7 @@ npm run frontend:build
 - Root Directory: `backend`
 - Build Command: `pip install -r requirements.txt`
 - Start Command: `python -m uvicorn main:app --host 0.0.0.0 --port $PORT`
+- Keepalive: `.github/workflows/render-keepalive.yml` pings `/health` every 10 minutes as a temporary Render Free spin-down mitigation. Use a paid Render instance for production uptime.
 - Required env vars:
   - `SUPABASE_URL`
   - `SUPABASE_SERVICE_ROLE_KEY`

@@ -23,6 +23,18 @@ class CorsPolicyTests(unittest.TestCase):
 
         self.assertTrue("*" in allow_methods or "DELETE" in allow_methods)
 
+    def test_cors_preflight_cache_is_enabled(self) -> None:
+        module = ast.parse(APP_INIT_PATH.read_text(encoding="utf-8"))
+        max_age = None
+
+        for node in ast.walk(module):
+            if not isinstance(node, ast.keyword) or node.arg != "max_age":
+                continue
+            if isinstance(node.value, ast.Constant):
+                max_age = node.value.value
+
+        self.assertGreaterEqual(max_age, 600)
+
 
 if __name__ == "__main__":
     unittest.main()

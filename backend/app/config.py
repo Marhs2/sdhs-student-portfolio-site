@@ -107,7 +107,7 @@ def get_settings() -> Settings:
     ]
     _assert_local_only_supabase_project(supabase_url, allowed_origins)
 
-    max_upload_bytes = int(os.getenv("PORTFOLIO_MAX_UPLOAD_BYTES", str(5 * 1024 * 1024)))
+    max_upload_bytes = int(os.getenv("PORTFOLIO_MAX_UPLOAD_BYTES", str(1024 * 1024)))
     public_cache_ttl_seconds = int(os.getenv("PORTFOLIO_PUBLIC_CACHE_TTL_SECONDS", "30"))
     public_cache_stale_seconds = int(os.getenv("PORTFOLIO_PUBLIC_CACHE_STALE_SECONDS", "300"))
     github_token = os.getenv("GITHUB_TOKEN", "").strip()

@@ -76,7 +76,7 @@ const loadProfiles = async () => {
   errorMessage.value = "";
 
   try {
-    authState.value = await getAuthState({ force: true });
+    authState.value = await getAuthState();
     const hasAccess = props.serverMode ? authState.value.isConfigAdmin : authState.value.isAdmin;
     if (!hasAccess) {
       errorMessage.value = props.serverMode

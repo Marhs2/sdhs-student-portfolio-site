@@ -99,7 +99,7 @@ router.beforeEach(async (to) => {
   }
 
   try {
-    const authState = await getAuthState({ force: true });
+    const authState = await getAuthState();
     const hasAccess = to.meta.requiresServerAdmin
       ? authState.isConfigAdmin
       : authState.isAdmin;

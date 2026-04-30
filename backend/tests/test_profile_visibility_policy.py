@@ -16,6 +16,7 @@ from backend.app.repositories import (  # noqa: E402
     _profile_update_payload,
     is_public_approved_profile,
     list_profiles,
+    list_admin_profiles,
     list_profiles_page,
 )
 
@@ -56,6 +57,18 @@ class ProfileVisibilityPolicyTests(unittest.TestCase):
         with patch("backend.app.repositories._select_profiles", return_value=profiles) as select_profiles:
             self.assertEqual([profile["id"] for profile in list_profiles()], [1])
             self.assertEqual([profile["id"] for profile in list_profiles()], [1])
+
+        self.assertEqual(select_profiles.call_count, 1)
+
+    def test_admin_profile_list_uses_private_short_lived_cache(self) -> None:
+        profiles = [
+            {"id": 1, "job": "frontend", "isVisible": True, "reviewStatus": "approved"},
+            {"id": 2, "job": "frontend", "isVisible": False, "reviewStatus": "draft"},
+        ]
+
+        with patch("backend.app.repositories._select_profiles", return_value=profiles) as select_profiles:
+            self.assertEqual([profile["id"] for profile in list_admin_profiles()], [1, 2])
+            self.assertEqual([profile["id"] for profile in list_admin_profiles(visibility="hidden")], [2])
 
         self.assertEqual(select_profiles.call_count, 1)
 

@@ -40,10 +40,16 @@ _public_cache = TtlCache(
     stale_seconds=_settings.public_cache_stale_seconds,
     max_entries=PUBLIC_CACHE_MAX_ENTRIES,
 )
+_private_cache = TtlCache(
+    ttl_seconds=10,
+    stale_seconds=30,
+    max_entries=128,
+)
 
 
 def clear_public_cache() -> None:
     _public_cache.clear()
+    _private_cache.clear()
 
 
 def _clone_profile(profile: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -433,7 +439,10 @@ def list_admin_profiles(
     search: str | None = None,
     sort: str = "featured",
 ) -> list[dict[str, Any]]:
-    profiles = list_profiles(sort=sort, include_hidden=True, include_private=True)
+    profiles = _private_cache.get_or_set(
+        ("admin-profiles", sort),
+        lambda: list_profiles(sort=sort, include_hidden=True, include_private=True),
+    )
     filtered = profiles
 
     if review_status and review_status != "all":

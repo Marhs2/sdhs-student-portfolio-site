@@ -13,6 +13,7 @@ import SurfaceSection from "../shared/layout/SurfaceSection.vue";
 import StatusView from "../shared/ui/StatusView.vue";
 import { getAuthState } from "../services/authService";
 import { getProfileBundle } from "../services/profileService";
+import { buildDisplayImageSrcset, toDisplayImageUrl } from "../shared/media/imageUrls.js";
 
 const route = useRoute();
 const router = useRouter();
@@ -175,7 +176,9 @@ watch(
         <div class="profile-header__portrait">
           <img
             v-if="profile.imageUrl"
-            :src="profile.imageUrl"
+            :src="toDisplayImageUrl(profile.imageUrl, { width: 640 })"
+            :srcset="buildDisplayImageSrcset(profile.imageUrl, [240, 480, 640])"
+            sizes="(max-width: 720px) 160px, 240px"
             :alt="`${profile.name} 프로필`"
             loading="lazy"
             decoding="async"

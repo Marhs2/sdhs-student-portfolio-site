@@ -3,6 +3,7 @@ import { computed } from "vue";
 
 import PortfolioVideoPreview from "./PortfolioVideoPreview.vue";
 import { toWatchUrl } from "../../services/portfolioItemService";
+import { buildDisplayImageSrcset, toDisplayImageUrl } from "../../shared/media/imageUrls.js";
 
 const props = defineProps({
   items: {
@@ -35,7 +36,9 @@ const isHttpUrl = (value) => /^https?:\/\/.+/i.test(String(value || "").trim());
         <div v-if="item.imageUrl || item.videoUrl" class="portfolio-grid__media">
           <img
             v-if="item.imageUrl"
-            :src="item.imageUrl"
+            :src="toDisplayImageUrl(item.imageUrl, { width: 720 })"
+            :srcset="buildDisplayImageSrcset(item.imageUrl, [360, 720, 1080])"
+            sizes="(max-width: 820px) calc(100vw - 76px), 360px"
             :alt="`${item.title || 'Project'} image`"
             class="portfolio-grid__image"
             loading="lazy"
