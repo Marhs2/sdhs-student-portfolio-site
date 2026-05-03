@@ -160,6 +160,22 @@ def test_repeated_sensitive_mutations_are_rate_limited() -> None:
     assert response.headers["retry-after"] == str(app_module.SENSITIVE_MUTATION_WINDOW_SECONDS)
 
 
+def test_student_write_routes_are_sensitive_mutations() -> None:
+    request_type = type(
+        "Request",
+        (),
+        {
+            "method": "PUT",
+            "url": type("Url", (), {"path": "/api/profiles/7/html"})(),
+        },
+    )
+
+    assert app_module._is_sensitive_mutation_request(request_type())
+
+    request_type.url = type("Url", (), {"path": "/api/portfolio-items/11"})()
+    assert app_module._is_sensitive_mutation_request(request_type())
+
+
 def test_unauthenticated_sensitive_mutations_do_not_consume_mutation_quota() -> None:
     app_module._sensitive_mutation_events_by_host.clear()
     client = TestClient(create_app())

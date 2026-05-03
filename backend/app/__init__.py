@@ -184,6 +184,10 @@ def _is_sensitive_mutation_request(request: Request) -> bool:
         request.method == "DELETE"
         or path.startswith("/api/admin/")
         or path.startswith("/api/server-admin/")
+        or path == "/api/profiles"
+        or path.startswith("/api/profiles/")
+        or path == "/api/portfolio-items"
+        or path.startswith("/api/portfolio-items/")
         or path.startswith("/api/uploads/")
     )
 
