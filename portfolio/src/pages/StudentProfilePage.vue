@@ -52,6 +52,16 @@ const editRoute = computed(() => {
 
   return "/me/edit";
 });
+const profileEvidence = computed(() => {
+  const items = [];
+  if (profileSections.value.hasValidGithub) items.push("GitHub 연결");
+  if (profileSections.value.projectCount > 0) {
+    items.push(`프로젝트 ${profileSections.value.projectCount}개`);
+  }
+  if (profile.value?.imageUrl) items.push("프로필 사진");
+  items.push(profileSections.value.visibilityLabel);
+  return items;
+});
 
 const goBack = () => {
   if (window.history.length > 1) {
@@ -66,7 +76,7 @@ const refreshPage = () => {
 };
 
 const unavailableMessage =
-  "삭제되었거나 공개되지 않은 프로필일 수 있습니다. 일시적인 로딩 문제일 수도 있으니 잠시 후 새로고침해보세요.";
+  "이 프로필은 비공개이거나 삭제되었거나 일시적으로 열 수 없습니다. 새로고침 후 다시 시도하세요.";
 
 const loadPage = async (profileId) => {
   if (!profileId) {
@@ -122,7 +132,7 @@ const loadPage = async (profileId) => {
     errorMessage.value =
       error.status === 404
         ? unavailableMessage
-        : `${error.message || "프로필을 불러오지 못했습니다."} 잠시 후 새로고침해보세요.`;
+        : `${error.message || "프로필을 불러오지 못했습니다."} 새로고침 후 다시 시도하세요.`;
     profile.value = null;
     portfolioItems.value = [];
     htmlContent.value = "";
@@ -143,13 +153,13 @@ watch(
 <template>
   <StatusView
     v-if="isLoading"
-    title="프로필을 불러오는 중입니다."
-    body="기본 정보와 프로젝트를 준비하고 있습니다."
+    title="프로필 불러오는 중"
+    body="학생 정보와 프로젝트 증빙을 준비하고 있습니다."
   />
   <StatusView
     v-else-if="errorMessage"
     state="error"
-    title="프로필을 열 수 없습니다."
+    title="이 프로필을 열 수 없습니다."
     :body="errorMessage"
   >
     <template #actions>
@@ -160,17 +170,15 @@ watch(
   </StatusView>
 
   <div v-else-if="profile" class="profile-page">
-    <!-- Back Navigation -->
     <nav class="profile-back">
       <button type="button" class="profile-back__btn" @click="goBack">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="15 18 9 12 15 6"/>
         </svg>
-        돌아가기
+        뒤로
       </button>
     </nav>
 
-    <!-- Header -->
     <section class="profile-header">
       <div class="profile-header__intro">
         <div class="profile-header__portrait">
@@ -179,7 +187,7 @@ watch(
             :src="toDisplayImageUrl(profile.imageUrl, { width: 640 })"
             :srcset="buildDisplayImageSrcset(profile.imageUrl, [240, 480, 640])"
             sizes="(max-width: 720px) 160px, 240px"
-            :alt="`${profile.name} 프로필`"
+            :alt="`${profile.name} 프로필 사진`"
             loading="lazy"
             decoding="async"
           />
@@ -199,6 +207,9 @@ watch(
           <p v-if="profileSections.taxonomyLine" class="profile-header__taxonomy">
             {{ profileSections.taxonomyLine }}
           </p>
+          <ul class="profile-header__evidence" aria-label="프로필 증빙">
+            <li v-for="item in profileEvidence" :key="item">{{ item }}</li>
+          </ul>
         </div>
       </div>
 
@@ -218,7 +229,6 @@ watch(
       </div>
     </section>
 
-    <!-- Meta Grid -->
     <section v-if="profileSections.metaItems.length" class="profile-meta">
       <div v-for="item in profileSections.metaItems" :key="item.label" class="profile-meta__item">
         <dt>{{ item.label }}</dt>
@@ -226,7 +236,7 @@ watch(
       </div>
       <div class="profile-meta__item">
         <dt>프로젝트</dt>
-        <dd>{{ profileSections.projectCount }}개</dd>
+        <dd>{{ profileSections.projectCount }}</dd>
       </div>
       <div v-if="canEdit" class="profile-meta__item">
         <dt>공개 상태</dt>
@@ -238,33 +248,31 @@ watch(
       </div>
     </section>
 
-    <!-- Tags -->
     <ul v-if="profile.tags?.length" class="profile-tags">
       <li v-for="tag in profile.tags" :key="tag">{{ tag }}</li>
     </ul>
 
-    <!-- Representative Project -->
     <SurfaceSection
       v-if="profileSections.representativeProject"
-      eyebrow="대표 프로젝트"
-      :title="profileSections.representativeProject.title || '프로젝트'"
+      eyebrow="대표"
+      :title="profileSections.representativeProject.title || '대표 프로젝트'"
+      summary="가장 보여주고 싶은 프로젝트를 먼저 배치해 작업 수준을 빠르게 확인할 수 있습니다."
     >
       <PortfolioItemGrid :items="[profileSections.representativeProject]" :editable="canEdit" />
     </SurfaceSection>
 
-    <!-- All Projects -->
     <SurfaceSection
       eyebrow="프로젝트"
-      title="전체 프로젝트"
+      title="프로젝트 증빙"
+      summary="이 학생의 작업, 링크, 미디어, 기여 내용을 확인하세요."
     >
       <PortfolioItemGrid :items="profileSections.displayProjects" :editable="canEdit" />
     </SurfaceSection>
 
-    <!-- HTML -->
     <SurfaceSection
       v-if="profileSections.extraHtml"
-      eyebrow="추가 정보"
-      title="상세 내용"
+      eyebrow="상세 정보"
+      title="추가 기록"
       tone="muted"
     >
       <ProfileHtmlSurface :html-content="profileSections.extraHtml" />
@@ -274,7 +282,7 @@ watch(
   <StatusView
     v-else
     state="empty"
-    title="프로필이 없습니다."
+    title="프로필을 사용할 수 없습니다."
     :body="unavailableMessage"
   >
     <template #actions>
@@ -291,7 +299,6 @@ watch(
   gap: 24px;
 }
 
-/* ── Back Navigation ── */
 .profile-back {
   padding-top: 8px;
 }
@@ -329,7 +336,6 @@ watch(
   border-color: var(--brand-main);
 }
 
-/* ── Header ── */
 .profile-header {
   display: flex;
   align-items: flex-start;
@@ -346,8 +352,8 @@ watch(
 }
 
 .profile-header__portrait {
-  width: 96px;
-  height: 96px;
+  width: 112px;
+  height: 112px;
   border-radius: var(--radius-xl);
   overflow: hidden;
   background: var(--muted);
@@ -367,13 +373,15 @@ watch(
 
 .profile-header__copy {
   display: grid;
-  gap: 4px;
+  gap: 6px;
 }
 
 .profile-header__role {
   color: var(--brand-main);
   font-size: 0.78rem;
-  font-weight: 600;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .profile-header__visibility {
@@ -388,7 +396,7 @@ watch(
 
 .profile-header__copy h1 {
   margin: 0;
-  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
   letter-spacing: 0;
   line-height: 1.1;
 }
@@ -397,13 +405,32 @@ watch(
   margin: 4px 0 0;
   color: var(--text-main);
   line-height: 1.6;
-  max-width: 48ch;
+  max-width: 58ch;
 }
 
 .profile-header__taxonomy {
   margin: 0;
   color: var(--text-sub);
   font-size: 0.86rem;
+}
+
+.profile-header__evidence,
+.profile-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0;
+  margin: 8px 0 0;
+  list-style: none;
+}
+
+.profile-header__evidence li {
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--success-soft);
+  color: var(--success-text);
+  font-size: 0.78rem;
+  font-weight: 750;
 }
 
 .profile-header__actions {
@@ -431,7 +458,6 @@ watch(
   border-color: var(--line-strong);
 }
 
-/* ── Meta Grid ── */
 .profile-meta {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -460,14 +486,8 @@ watch(
   font-weight: 500;
 }
 
-/* ── Tags ── */
 .profile-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 0;
   margin: 0;
-  list-style: none;
 }
 
 .profile-tags li {
@@ -479,7 +499,6 @@ watch(
   font-weight: 500;
 }
 
-/* ── Responsive ── */
 @media (max-width: 768px) {
   .profile-header {
     flex-direction: column;

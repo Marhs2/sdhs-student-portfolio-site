@@ -7,27 +7,34 @@ const firstText = (...values) => values.map(toText).find(Boolean) || "";
 const distinctText = (values) => [...new Set(values.map(toText).filter(Boolean))];
 
 const ROLE_ALIASES = {
-  프론트엔드: "프론트엔드",
-  "프론트 엔드 개발자": "프론트엔드",
-  "프론트엔드 개발자": "프론트엔드",
   frontend: "프론트엔드",
   frontenddeveloper: "프론트엔드",
-  백엔드: "백엔드",
-  "백 엔드 개발자": "백엔드",
-  "백엔드 개발자": "백엔드",
+  "front-end": "프론트엔드",
+  "프론트엔드": "프론트엔드",
+  "프론트엔드개발": "프론트엔드",
+  "프론트엔드개발자": "프론트엔드",
   backend: "백엔드",
   backenddeveloper: "백엔드",
-  풀스택: "풀스택",
-  "풀 스택 개발자": "풀스택",
-  "풀스택 개발자": "풀스택",
+  "back-end": "백엔드",
+  "백엔드": "백엔드",
+  "백엔드개발": "백엔드",
+  "백엔드개발자": "백엔드",
   fullstack: "풀스택",
   fullstackdeveloper: "풀스택",
-  그래픽: "그래픽",
-  graphicdesigner: "그래픽",
-  graphicsdesigner: "그래픽",
-  "게임 개발": "게임 개발",
-  "게임 개발자": "게임 개발",
+  "full-stack": "풀스택",
+  "풀스택": "풀스택",
+  "풀스택개발": "풀스택",
+  "풀스택개발자": "풀스택",
+  graphicdesigner: "그래픽 디자인",
+  graphicsdesigner: "그래픽 디자인",
+  "그래픽디자인": "그래픽 디자인",
+  "그래픽디자이너": "그래픽 디자인",
+  gamedev: "게임 개발",
   gamedeveloper: "게임 개발",
+  "게임개발": "게임 개발",
+  "게임개발자": "게임 개발",
+  mobile: "모바일",
+  "모바일": "모바일",
 };
 
 const normalizeRole = (value) => {
@@ -75,7 +82,7 @@ export const buildStudentCardModel = (profile = {}) => {
   const email = toText(profile.email);
   const github = formatGithubHandle(profile.github);
   const subtitle = role;
-  const metaLine = taxonomy.join(" · ") || (role ? role : "프로필");
+  const metaLine = taxonomy.join(" / ") || (role ? role : "프로필");
   const tags = distinctText(Array.isArray(profile.tags) ? profile.tags : [])
     .filter((tag) => normalizeRole(tag) !== role)
     .slice(0, 5);
@@ -101,6 +108,8 @@ export const buildStudentCardModel = (profile = {}) => {
     role,
     taxonomy,
     accentTone,
+    email,
+    github,
     isVisible: profile.isVisible !== false,
     reviewStatus: firstText(profile.reviewStatus, "draft"),
   };

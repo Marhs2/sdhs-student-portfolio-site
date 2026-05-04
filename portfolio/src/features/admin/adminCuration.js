@@ -6,8 +6,8 @@ const hasGithubProfile = (profile = {}) => /^https:\/\/github\.com\/[^/\s]+\/?$/
 
 const ISSUE_LABELS = {
   name: "이름",
-  job: "직무",
-  description: "소개",
+  job: "희망 분야",
+  description: "자기소개",
   school: "학교",
   department: "학과",
   github: "GitHub",
@@ -16,9 +16,9 @@ const ISSUE_LABELS = {
 
 const REVIEW_STATUS_LABELS = {
   draft: "초안",
-  review: "검토",
-  approved: "승인",
-  banned: "밴",
+  review: "검토 중",
+  approved: "승인됨",
+  banned: "차단됨",
 };
 
 export const createAdminDraft = (profile = {}) => ({
@@ -69,7 +69,7 @@ export const getAdminProfileIssues = (profile = {}) => {
 
   if (profile.reviewStatus !== "approved") {
     if (profile.reviewStatus === "banned") {
-      issues.push("밴");
+      issues.push("차단됨");
     } else {
       issues.push(profile.reviewStatus === "review" ? "검토 대기" : "초안");
     }
@@ -135,7 +135,7 @@ export const buildAdminRows = (profiles = [], filters = {}) => {
         profile.track,
         profile.github,
         profile.reviewStatus,
-        profile.isVisible ? "visible 공개" : "hidden 비공개",
+        profile.isVisible ? "visible public 공개" : "hidden private 비공개",
         ...(profile.tags || []),
       ]
         .join(" ")

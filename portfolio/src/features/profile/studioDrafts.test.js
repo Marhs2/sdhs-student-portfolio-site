@@ -24,7 +24,7 @@ test("buildProfileFormDraft converts profile data into form-safe text", () => {
       job: "프론트엔드",
       school: "Gondr High School",
       department: "Web Contents",
-      track: "Frontend",
+      track: "프론트엔드",
       tags: ["Vue", "Design"],
       github: "https://github.com/kim",
       imageUrl: "https://cdn.example.com/kim.jpg",
@@ -93,7 +93,7 @@ test("hydrateProjectDraft reads legacy custom link URLs as website links", () =>
 test("buildProjectValidationState requires a project title", () => {
   assert.deepEqual(buildProjectValidationState({ title: "  " }), {
     canSubmit: false,
-    message: "프로젝트 이름을 입력해 주세요.",
+    message: "프로젝트 제목을 먼저 입력하세요.",
   });
 
   assert.deepEqual(buildProjectValidationState({ title: "Demo" }), {
@@ -110,7 +110,7 @@ test("buildProjectValidationState validates website link URLs", () => {
     }),
     {
       canSubmit: false,
-      message: "웹 사이트 링크는 https:// 또는 http://로 시작해야 합니다.",
+      message: "웹사이트 링크는 https:// 또는 http://로 시작해야 합니다.",
     },
   );
 
@@ -132,7 +132,7 @@ test("buildProjectCompletionState summarizes project draft quality", () => {
   const complete = buildProjectCompletionState({
     title: "Demo",
     description: "This project explains the problem, role, result, and why the work matters.",
-    contribution: "Frontend",
+    contribution: "프론트엔드",
     tagsText: "vue, portfolio",
     githubUrl: "https://github.com/demo",
   });
@@ -156,7 +156,7 @@ test("parseTags and buildStudioSections normalize display state", () => {
     [
       { label: "기본 정보", value: "63%" },
       { label: "프로젝트", value: "2개" },
-      { label: "추가 정보", value: "3칸" },
+      { label: "상세 정보", value: "3개 항목" },
     ],
   );
 });

@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, reactive, ref, watch } from "vue";
 
 import PortfolioVideoPreview from "./PortfolioVideoPreview.vue";
@@ -102,11 +102,13 @@ const actionHint = computed(() => {
   }
 
   if (validationState.value.canSubmit) {
-    return "저장할 수 있습니다. 링크와 미디어는 나중에 보강해도 됩니다.";
+    return "??? ? ????. ??? ???? ?? ????? ??? ??? ? ????.";
   }
 
-  return validationState.value.message || "필수 정보를 먼저 입력해 주세요.";
+  return validationState.value.message || "?꾩닔 ??ぉ??癒쇱? 梨꾩썙二쇱꽭??";
 });
+
+const isEditing = computed(() => props.submitLabel.includes("??"));
 
 const handleSubmit = () => {
   validationMessage.value = validationState.value.message;
@@ -132,56 +134,56 @@ const handleSubmit = () => {
   <section class="portfolio-item-form" :data-ready="validationState.canSubmit" :data-disabled="disabled">
     <header class="portfolio-item-form__header">
       <div class="portfolio-item-form__intro">
-        <span>{{ submitLabel.includes("수정") ? "프로젝트 편집" : "새 프로젝트" }}</span>
+        <span>{{ isEditing ? "???? ??" : "? ????" }}</span>
         <h3>{{ submitLabel }}</h3>
-        <p>이름과 한 줄 역할부터 적으면 저장할 수 있습니다. 링크, 이미지, 영상은 선택 사항입니다.</p>
+        <p>작업 이름, 내 역할, 확인 가능한 링크나 미디어를 함께 남겨주세요.</p>
       </div>
 
-      <div class="portfolio-item-form__score" aria-label="프로젝트 작성 상태">
+      <div class="portfolio-item-form__score" aria-label="프로젝트 완성도">
         <strong>{{ completionState.percent }}%</strong>
         <span>{{ completionState.doneCount }}/{{ completionState.items.length }} 완료</span>
       </div>
     </header>
 
-    <ul class="portfolio-item-form__checklist" aria-label="프로젝트 작성 점검">
+    <ul class="portfolio-item-form__checklist" aria-label="프로젝트 품질 체크리스트">
       <li
         v-for="item in completionState.items"
         :key="item.key"
         :data-done="item.done"
       >
-        <span aria-hidden="true">{{ item.done ? "✓" : "" }}</span>
+        <span aria-hidden="true">{{ item.done ? "완" : "" }}</span>
         {{ item.label }}
       </li>
     </ul>
 
     <fieldset class="portfolio-item-form__section" :disabled="disabled">
       <div class="portfolio-item-form__section-head">
-        <strong>핵심 정보</strong>
-        <span>목록 카드에 바로 보이는 내용입니다.</span>
+        <strong>핵심 증빙</strong>
+        <span>프로젝트 카드에 바로 표시됩니다.</span>
       </div>
 
       <div class="portfolio-item-form__grid">
         <label>
-          <span :id="`${fieldId}-title-label`">프로젝트 이름</span>
+          <span :id="`${fieldId}-title-label`">???? ??</span>
           <input
             v-model="form.title"
             :aria-labelledby="`${fieldId}-title-label`"
             :aria-invalid="validationMessage && !form.title.trim() ? 'true' : 'false'"
             name="project-title"
             type="text"
-            placeholder="예: 졸업 작품 전시 웹사이트"
+            placeholder="議몄뾽 ?꾩떆 ?뱀궗?댄듃"
             required
           />
         </label>
 
         <label>
-          <span :id="`${fieldId}-contribution-label`">기여도</span>
+          <span :id="`${fieldId}-contribution-label`">???븷</span>
           <input
             v-model="form.contribution"
             :aria-labelledby="`${fieldId}-contribution-label`"
             name="project-contribution"
             type="text"
-            placeholder="예: UI 설계, 프론트엔드 구현"
+            placeholder="UI ?붿옄?? API ?곕룞"
           />
         </label>
 
@@ -192,9 +194,9 @@ const handleSubmit = () => {
             :aria-labelledby="`${fieldId}-description-label`"
             name="project-description"
             rows="4"
-            placeholder="무엇을 만들었고, 내가 맡은 결정과 결과가 무엇인지 적어주세요."
+            placeholder="무엇을 만들었고, 어떤 판단을 했고, 결과가 어떻게 달라졌는지 적어주세요."
           />
-          <small>{{ form.description.trim().length }}자 작성됨</small>
+          <small>{{ form.description.trim().length }}자</small>
         </label>
       </div>
     </fieldset>
@@ -202,7 +204,7 @@ const handleSubmit = () => {
     <details class="portfolio-item-form__details" :open="hasSupportingContent">
       <summary>
         <span>링크와 미디어</span>
-        <strong>선택 입력</strong>
+        <strong>선택 증빙</strong>
       </summary>
 
       <fieldset class="portfolio-item-form__grid" :disabled="disabled">
@@ -213,7 +215,7 @@ const handleSubmit = () => {
             :input-id="`${fieldId}-tags`"
             name="project-tags"
             :suggestions="TAG_OPTIONS"
-            placeholder="vue, figma, branding, motion"
+            placeholder="vue, figma, 브랜딩, 모션"
           />
         </label>
 
@@ -230,7 +232,7 @@ const handleSubmit = () => {
         </label>
 
         <label class="portfolio-item-form__wide">
-          <span :id="`${fieldId}-website-label`">웹 사이트 링크</span>
+          <span :id="`${fieldId}-website-label`">?뱀궗?댄듃 留곹겕</span>
           <input
             v-model="form.websiteUrl"
             :aria-labelledby="`${fieldId}-website-label`"
@@ -242,7 +244,7 @@ const handleSubmit = () => {
         </label>
 
         <label>
-          <span :id="`${fieldId}-video-label`">영상 URL</span>
+          <span :id="`${fieldId}-video-label`">?? URL</span>
           <input
             v-model="form.videoUrl"
             :aria-labelledby="`${fieldId}-video-label`"
@@ -254,7 +256,7 @@ const handleSubmit = () => {
         </label>
 
         <label>
-          <span :id="`${fieldId}-image-label`">이미지 URL</span>
+          <span :id="`${fieldId}-image-label`">??? URL</span>
           <input
             v-model="form.imageUrl"
             :aria-labelledby="`${fieldId}-image-label`"
@@ -267,20 +269,20 @@ const handleSubmit = () => {
 
         <label class="portfolio-item-form__checkbox">
           <input v-model="form.isFeatured" name="project-featured" type="checkbox" />
-          <span>대표 프로젝트로 표시</span>
+          <span>?? ????? ??</span>
         </label>
       </fieldset>
     </details>
 
     <div v-if="form.imageUrl || form.videoUrl" class="portfolio-item-form__preview-grid">
       <div v-if="form.imageUrl" class="portfolio-item-form__image-preview">
-        <img :src="form.imageUrl" :alt="`${form.title || 'Project'} preview`" />
+        <img :src="form.imageUrl" :alt="`${form.title || '프로젝트'} 미리보기`" />
       </div>
 
       <PortfolioVideoPreview
         v-if="form.videoUrl"
         :video-url="form.videoUrl"
-        :title="form.title || 'Project'"
+        :title="form.title || '프로젝트'"
       />
     </div>
 
@@ -298,7 +300,7 @@ const handleSubmit = () => {
         :disabled="busy || disabled"
         @click="handleSubmit"
       >
-        {{ busy ? "저장 중..." : submitLabel }}
+        {{ busy ? "???以?.." : submitLabel }}
       </button>
     </div>
   </section>

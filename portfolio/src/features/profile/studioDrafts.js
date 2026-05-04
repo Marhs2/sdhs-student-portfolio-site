@@ -35,14 +35,14 @@ export const buildProjectValidationState = (project = {}) => {
   if (!title) {
     return {
       canSubmit: false,
-      message: "프로젝트 이름을 입력해 주세요.",
+      message: "프로젝트 제목을 먼저 입력하세요.",
     };
   }
 
   if (websiteUrl && !isHttpUrl(websiteUrl)) {
     return {
       canSubmit: false,
-      message: "웹 사이트 링크는 https:// 또는 http://로 시작해야 합니다.",
+      message: "웹사이트 링크는 https:// 또는 http://로 시작해야 합니다.",
     };
   }
 
@@ -65,10 +65,10 @@ export const buildProjectCompletionState = (project = {}) => {
   ].some((value) => Boolean(String(value || "").trim()));
 
   const items = [
-    { key: "title", label: "프로젝트 이름", done: hasTitle },
-    { key: "description", label: "설명 40자 이상", done: hasDescription },
-    { key: "contribution", label: "기여도", done: hasContribution },
-    { key: "proof", label: "링크 또는 미디어", done: hasProofLink },
+    { key: "title", label: "프로젝트 제목", done: hasTitle },
+    { key: "description", label: "40자 이상 설명", done: hasDescription },
+    { key: "contribution", label: "내 역할", done: hasContribution },
+    { key: "proof", label: "증빙 링크 또는 미디어", done: hasProofLink },
     { key: "tags", label: "태그", done: hasTags },
   ];
   const doneCount = items.filter((item) => item.done).length;
@@ -96,7 +96,7 @@ export const buildProfileFormDraft = (profile) => ({
 export const buildStudioSections = ({ completenessPercent, projectCount, noteFieldCount }) => [
   { label: "기본 정보", value: `${Number(completenessPercent) || 0}%` },
   { label: "프로젝트", value: `${Number(projectCount) || 0}개` },
-  { label: "추가 정보", value: noteFieldCount > 0 ? `${noteFieldCount}칸` : "없음" },
+  { label: "상세 정보", value: noteFieldCount > 0 ? `${noteFieldCount}개 항목` : "없음" },
 ];
 
 export const buildVisibilityToggleCopy = (isVisible) =>

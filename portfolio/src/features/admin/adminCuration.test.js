@@ -19,7 +19,7 @@ const profiles = [
     job: "프론트엔드",
     school: "Gondr High School",
     department: "Web Contents",
-    track: "Frontend",
+    track: "프론트엔드",
     github: "https://github.com/kim",
     imageUrl: "https://cdn.example.com/kim.jpg",
     tags: ["Vue"],
@@ -58,12 +58,12 @@ test("buildAdminSummary counts operational curation states", () => {
 });
 
 test("buildAdminRows searches taxonomy and attaches completeness", () => {
-  const rows = buildAdminRows(profiles, { search: "frontend" });
+  const rows = buildAdminRows(profiles, { search: "프론트엔드" });
 
   assert.equal(rows.length, 1);
   assert.equal(rows[0].id, 1);
   assert.equal(rows[0].completeness.percent, 83);
-  assert.deepEqual(rows[0].issues, ["소개 누락"]);
+  assert.deepEqual(rows[0].issues, ["자기소개 누락"]);
 });
 
 test("buildAdminRows searches operational fields beyond visible copy", () => {
@@ -102,7 +102,7 @@ test("buildAdminRows applies quick operational filters", () => {
         id: 1,
         name: "Ready",
         description: "Complete student profile",
-        job: "Frontend",
+        job: "프론트엔드",
         school: "Gondr High School",
         department: "Web Contents",
         github: "https://github.com/ready",
@@ -123,7 +123,7 @@ test("buildAdminRows applies quick operational filters", () => {
         id: 3,
         name: "Missing Github",
         description: "Needs repository",
-        job: "Backend",
+        job: "백엔드",
         school: "Gondr High School",
         department: "Web Contents",
         imageUrl: "https://cdn.example.com/missing.jpg",

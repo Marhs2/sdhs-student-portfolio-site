@@ -30,6 +30,8 @@ test("buildStudentCardModel keeps identity metadata first", () => {
     "role",
     "taxonomy",
     "accentTone",
+    "email",
+    "github",
     "isVisible",
     "reviewStatus",
   ]);
@@ -37,7 +39,7 @@ test("buildStudentCardModel keeps identity metadata first", () => {
     id: 42,
     title: "Ava Kim",
     subtitle: "프론트엔드",
-    metaLine: "Seoul Digitech High School · Visual Communication",
+    metaLine: "Seoul Digitech High School / Visual Communication",
     summary: "Builds student-facing products with clear information hierarchy.",
     tags: ["vue", "branding"],
     imageUrl: "https://cdn.example.com/ava.jpg",
@@ -46,6 +48,8 @@ test("buildStudentCardModel keeps identity metadata first", () => {
     role: "프론트엔드",
     taxonomy: ["Seoul Digitech High School", "Visual Communication"],
     accentTone: "featured",
+    email: "",
+    github: "@ava-kim",
     isVisible: true,
     reviewStatus: "draft",
   });
@@ -79,6 +83,8 @@ test("buildStudentCardModel falls back to stable defaults", () => {
     role: "",
     taxonomy: [],
     accentTone: "default",
+    email: "",
+    github: "",
     isVisible: true,
     reviewStatus: "draft",
   });

@@ -19,8 +19,8 @@ const routes = [
     component: BrowsePage,
     meta: {
       section: "browse",
-      title: "포트폴리오",
-      summary: "학생 포트폴리오 목록",
+      title: "SDHS 학생 포트폴리오",
+      summary: "서울디지텍고등학교 학생 포트폴리오 목록",
     },
   },
   {
@@ -28,8 +28,8 @@ const routes = [
     component: StudentProfilePage,
     meta: {
       section: "profile",
-      title: "프로필",
-      summary: "학생 프로필",
+      title: "학생 프로필",
+      summary: "학생 포트폴리오 프로필",
     },
   },
   {
@@ -37,8 +37,8 @@ const routes = [
     component: StudioPage,
     meta: {
       section: "studio",
-      title: "내 포트폴리오",
-      summary: "프로필 수정",
+      title: "포트폴리오 스튜디오",
+      summary: "프로필 편집",
     },
   },
   {
@@ -47,7 +47,7 @@ const routes = [
     meta: {
       section: "studio",
       title: "프로필 수정",
-      summary: "프로필 수정",
+      summary: "프로필 편집",
     },
   },
   {
@@ -70,7 +70,7 @@ const routes = [
       requiresServerAdmin: true,
       section: "server-admin",
       title: "서버 관리자",
-      summary: "권한과 공개 정책 관리",
+      summary: "권한과 공개 설정 관리",
     },
   },
   {
@@ -117,7 +117,7 @@ router.beforeEach(async (to) => {
 });
 
 router.afterEach((to) => {
-  const title = to.meta.title ? `${to.meta.title} — 포트폴리오` : "포트폴리오";
+  const title = to.meta.title ? `${to.meta.title} - SDHS` : "SDHS 학생 포트폴리오";
   document.title = title;
 });
 

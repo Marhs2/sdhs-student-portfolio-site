@@ -75,7 +75,7 @@ const handleAuthAction = async () => {
   if (authState.value.user) {
     await signOutUser();
     await refreshAuth();
-    showSuccess("로그아웃되었습니다.");
+    showSuccess("로그아웃했습니다.");
     return;
   }
 
@@ -121,7 +121,7 @@ onBeforeUnmount(() => {
               class="site-shell__action"
               to="/me/edit"
             >
-              내 프로필
+              내 포트폴리오
             </RouterLink>
             <RouterLink
               v-if="authState.isAdmin"
@@ -156,15 +156,14 @@ onBeforeUnmount(() => {
 
     <footer class="site-shell__footer">
       <div class="site-shell__container site-shell__footer-inner">
-        <p>서울디지텍고등학교 포트폴리오</p>
+        <p>SDHS 학생 포트폴리오</p>
         <div class="site-shell__footer-links">
-          <span>학생 작품 아카이브</span>
-          <span>저작권은 각 제작자에게 있습니다.</span>
+          <span>서울디지텍고등학교 학생 작업 아카이브</span>
+          <span>각 프로필은 작성한 학생에게 속합니다.</span>
         </div>
       </div>
     </footer>
 
-    <!-- Scroll-to-top -->
     <Transition name="scrolltop">
       <button
         v-if="showScrollTop"
@@ -195,7 +194,6 @@ onBeforeUnmount(() => {
   padding-right: 20px;
 }
 
-/* ── Header ── */
 .site-shell__header {
   position: sticky;
   top: 0;
@@ -277,13 +275,11 @@ onBeforeUnmount(() => {
   color: #fff;
 }
 
-/* ── Main ── */
 .site-shell__main {
   padding-top: 32px;
   padding-bottom: 80px;
 }
 
-/* ── Footer ── */
 .site-shell__footer {
   border-top: 1px solid var(--line-soft);
   background: transparent;
@@ -377,7 +373,6 @@ onBeforeUnmount(() => {
   transform: translateX(-50%) translateY(8px);
 }
 
-/* ── Responsive ── */
 @media (max-width: 768px) {
   .site-shell__header-inner {
     height: auto;

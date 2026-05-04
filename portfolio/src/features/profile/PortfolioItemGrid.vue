@@ -39,7 +39,7 @@ const isHttpUrl = (value) => /^https?:\/\/.+/i.test(String(value || "").trim());
             :src="toDisplayImageUrl(item.imageUrl, { width: 720 })"
             :srcset="buildDisplayImageSrcset(item.imageUrl, [360, 720, 1080])"
             sizes="(max-width: 820px) calc(100vw - 76px), 360px"
-            :alt="`${item.title || 'Project'} image`"
+            :alt="`${item.title || '프로젝트'} 이미지`"
             class="portfolio-grid__image"
             loading="lazy"
             decoding="async"
@@ -48,7 +48,7 @@ const isHttpUrl = (value) => /^https?:\/\/.+/i.test(String(value || "").trim());
           <PortfolioVideoPreview
             v-if="item.videoUrl"
             :video-url="item.videoUrl"
-            :title="item.title || 'Project'"
+            :title="item.title || '프로젝트'"
             compact
           />
         </div>
@@ -58,14 +58,14 @@ const isHttpUrl = (value) => /^https?:\/\/.+/i.test(String(value || "").trim());
             <p class="portfolio-grid__eyebrow">
               {{ item.isFeatured ? "대표 프로젝트" : "프로젝트" }}
             </p>
-            <h3>{{ item.title || "제목 없음" }}</h3>
+            <h3>{{ item.title || "제목 없는 프로젝트" }}</h3>
             <p class="portfolio-grid__description">
-              {{ item.description || "설명 없음" }}
+              {{ item.description || "아직 설명이 없습니다." }}
             </p>
           </div>
 
           <p v-if="item.contribution" class="portfolio-grid__contribution">
-            <strong>기여도</strong> {{ item.contribution }}
+            <strong>내 역할</strong> {{ item.contribution }}
           </p>
 
           <ul v-if="item.tags.length" class="portfolio-grid__tags">
@@ -80,7 +80,7 @@ const isHttpUrl = (value) => /^https?:\/\/.+/i.test(String(value || "").trim());
               rel="noreferrer"
               class="portfolio-grid__link portfolio-grid__link--primary"
             >
-              웹 사이트
+              결과물 보기
             </a>
             <a
               v-if="isGithubUrl(item.githubUrl)"
@@ -100,15 +100,15 @@ const isHttpUrl = (value) => /^https?:\/\/.+/i.test(String(value || "").trim());
             >
               영상 보기
             </a>
-            <span v-if="editable" class="portfolio-grid__editable-pill">편집 화면에서 수정 가능</span>
+            <span v-if="editable" class="portfolio-grid__editable-pill">스튜디오에서 수정 가능</span>
           </div>
         </div>
       </article>
     </div>
 
     <div v-else class="portfolio-grid__empty">
-      <strong>프로젝트가 없습니다.</strong>
-      <p>편집 화면에서 프로젝트를 추가해 주세요.</p>
+      <strong>아직 프로젝트가 없습니다.</strong>
+      <p>프로필을 제대로 보여주려면 스튜디오에서 프로젝트를 하나 이상 추가하세요.</p>
     </div>
   </section>
 </template>
@@ -136,7 +136,6 @@ const isHttpUrl = (value) => /^https?:\/\/.+/i.test(String(value || "").trim());
   grid-template-columns: minmax(260px, 360px) minmax(0, 1fr);
   align-items: start;
 }
-
 
 .portfolio-grid__media {
   display: grid;

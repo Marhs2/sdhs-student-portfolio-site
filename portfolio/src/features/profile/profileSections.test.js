@@ -9,7 +9,7 @@ test("buildProfileSections separates representative project and keeps summary fi
       description: "<p>Interaction designer</p>",
       school: "Gondr High School",
       department: "Web Contents",
-      track: "Frontend",
+      track: "프론트엔드",
       reviewStatus: "approved",
       isVisible: false,
       github: "https://github.com/student",
@@ -22,12 +22,12 @@ test("buildProfileSections separates representative project and keeps summary fi
   );
 
   assert.equal(sections.cleanDescription, "Interaction designer");
-  assert.equal(sections.taxonomyLine, "Gondr High School · Web Contents");
+  assert.equal(sections.taxonomyLine, "Gondr High School / Web Contents");
   assert.deepEqual(sections.metaItems, [
     { label: "학교", value: "Gondr High School" },
     { label: "학과", value: "Web Contents" },
   ]);
-  assert.equal(sections.statusLabel, "승인");
+  assert.equal(sections.statusLabel, "승인됨");
   assert.equal(sections.visibilityLabel, "비공개");
   assert.equal(sections.isPrivate, true);
   assert.equal(sections.projectCount, 2);
@@ -40,7 +40,7 @@ test("buildProfileSections separates representative project and keeps summary fi
 test("buildProfileSections falls back safely for empty projects and unsafe text", () => {
   const sections = buildProfileSections({ github: "github.com/student" }, [], "");
 
-  assert.equal(sections.cleanDescription, "소개를 준비 중입니다.");
+  assert.equal(sections.cleanDescription, "아직 자기소개를 작성하지 않았습니다.");
   assert.equal(sections.taxonomyLine, "");
   assert.deepEqual(sections.metaItems, []);
   assert.equal(sections.statusLabel, "초안");

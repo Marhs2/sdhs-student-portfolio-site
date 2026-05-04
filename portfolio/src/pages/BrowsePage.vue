@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, onMounted, reactive, ref, watch } from "vue";
 
 import StatusView from "../shared/ui/StatusView.vue";
@@ -61,9 +61,20 @@ const activeFilterChips = computed(() => {
   const chips = [];
   filters.jobs.forEach((job) => chips.push({ key: `job:${job}`, type: "job", value: job, label: job }));
   if (filters.department) chips.push({ key: "department", label: filters.department });
-  if (filters.sort !== DEFAULT_BROWSE_SORT) chips.push({ key: "sort", label: browseSortLabels[filters.sort] || "정렬" });
+  if (filters.sort !== DEFAULT_BROWSE_SORT) {
+    chips.push({ key: "sort", label: browseSortLabels[filters.sort] || "Sort" });
+  }
   return chips;
 });
+
+const buildEvidenceBadges = (card) => {
+  const badges = [];
+  if (card.github) badges.push("GitHub 연결");
+  if (card.imageUrl) badges.push("사진 있음");
+  if (card.reviewStatus === "approved") badges.push("승인됨");
+  if (card.isVisible) badges.push("공개");
+  return badges.slice(0, 4);
+};
 
 const loadCommitCounts = async () => {
   if (filters.sort !== "githubCommits" || isLoadingCommitCounts.value) {
@@ -73,7 +84,7 @@ const loadCommitCounts = async () => {
   const requestId = ++commitCountRequestId;
   const usernames = profiles.value.map((profile) => extractGithubUsername(profile.github)).filter(Boolean);
   if (!usernames.length) {
-    commitCountMessage.value = "GitHub URL이 등록된 프로필이 없습니다.";
+    commitCountMessage.value = "?? GitHub URL? ??? ???? ????.";
     commitCounts.value = {};
     return;
   }
@@ -87,7 +98,7 @@ const loadCommitCounts = async () => {
     }
   } catch (error) {
     if (requestId === commitCountRequestId) {
-      commitCountMessage.value = error.message || "GitHub 활동 수를 불러오지 못했습니다.";
+      commitCountMessage.value = error.message || "GitHub ??? ???? ?????.";
     }
   } finally {
     if (requestId === commitCountRequestId) {
@@ -105,7 +116,7 @@ const loadProfiles = async () => {
     isLoading.value = false;
     void loadCommitCounts();
   } catch (error) {
-    errorMessage.value = error.message || "포트폴리오 목록을 불러오지 못했습니다.";
+    errorMessage.value = error.message || "?? ????? ??? ???? ?????.";
     isLoading.value = false;
   }
 };
@@ -165,20 +176,19 @@ onMounted(loadProfiles);
 
 <template>
   <div class="browse-page">
-    <!-- Hero -->
     <section class="browse-hero">
       <div class="browse-hero__copy">
-        <h1>포트폴리오</h1>
-        <p>서울디지텍고등학교 학생들의 작품을 만나보세요.</p>
+        <p class="browse-hero__eyebrow">서울디지텍고등학교</p>
+        <h1>SDHS 학생 포트폴리오</h1>
+        <p>이름, 희망 분야, 학과, 태그로 학생 작업을 찾고 공개된 프로필을 확인하세요.</p>
       </div>
       <div class="browse-hero__count">
         <strong>{{ filteredCount }}</strong>
-        <span>조건에 맞는 공개 프로필</span>
+        <span>개의 공개 프로필</span>
       </div>
     </section>
 
-    <!-- Filters -->
-    <section class="browse-filters">
+    <section class="browse-filters" aria-label="프로필 필터">
       <div class="browse-filters__search">
         <svg class="browse-filters__search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="11" cy="11" r="8"/>
@@ -189,7 +199,7 @@ onMounted(loadProfiles);
           v-model="filters.search"
           name="profile-search"
           type="text"
-          placeholder="이름, 소개, 태그로 검색"
+          placeholder="이름, 소개, 태그 검색"
         />
         <button
           v-if="filters.search"
@@ -222,7 +232,7 @@ onMounted(loadProfiles);
       </div>
     </section>
 
-    <section class="browse-job-filters" aria-label="직무 필터">
+    <section class="browse-job-filters" aria-label="희망 분야 필터">
       <button
         v-for="job in options.jobs"
         :key="job"
@@ -236,7 +246,6 @@ onMounted(loadProfiles);
       </button>
     </section>
 
-    <!-- Active Filter Chips -->
     <div class="browse-chips" v-if="activeFilterChips.length">
       <button
         v-for="chip in activeFilterChips"
@@ -258,25 +267,20 @@ onMounted(loadProfiles);
         class="browse-chip browse-chip--reset"
         @click="resetFilters"
       >
-        전체 초기화
+        모두 초기화
       </button>
     </div>
 
-    <!-- Result count -->
-    <p v-if="!isLoading && !errorMessage && hasActiveFilters && filteredProfiles.length > 0" class="browse-result-count">
-      {{ filteredCount }}개의 결과 · {{ pageStart }}-{{ pageEnd }}번째 표시
+    <p v-if="!isLoading && !errorMessage && filteredProfiles.length > 0" class="browse-result-count">
+      총 {{ filteredCount }}개 중 {{ pageStart }}-{{ pageEnd }}개 표시
       <template v-if="filters.sort === 'githubCommits'">
-        · {{ isLoadingCommitCounts ? "GitHub 활동 조회 중" : "올해 GitHub 잔디 기준" }}
+        / {{ isLoadingCommitCounts ? "GitHub 활동 불러오는 중" : "GitHub 활동 기준 정렬" }}
       </template>
-    </p>
-    <p v-else-if="!isLoading && !errorMessage && filteredProfiles.length > 0" class="browse-result-count">
-      {{ filteredCount }}개의 공개 프로필 · {{ pageStart }}-{{ pageEnd }}번째 표시 · 올해 GitHub 잔디 기준 정렬
     </p>
     <p v-if="commitCountMessage" class="browse-result-count browse-result-count--warning">
       {{ commitCountMessage }}
     </p>
 
-    <!-- Loading Skeleton -->
     <section v-if="isLoading" class="browse-grid">
       <div v-for="n in 6" :key="n" class="browse-skeleton">
         <div class="browse-skeleton__image" />
@@ -288,15 +292,13 @@ onMounted(loadProfiles);
       </div>
     </section>
 
-    <!-- Error -->
     <StatusView
       v-else-if="errorMessage"
       state="error"
-      title="오류가 발생했습니다."
+      title="???? ???? ?????."
       :body="errorMessage"
     />
 
-    <!-- Empty -->
     <section v-else-if="filteredProfiles.length === 0" class="browse-empty">
       <div class="browse-empty__icon">
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -304,8 +306,8 @@ onMounted(loadProfiles);
           <line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
       </div>
-      <h2>결과가 없습니다</h2>
-      <p>검색 조건을 변경하거나 필터를 초기화해 보세요.</p>
+      <h2>조건에 맞는 프로필이 없습니다.</h2>
+      <p>검색어를 바꾸거나 필터를 초기화해 보세요.</p>
       <button
         v-if="hasActiveFilters"
         type="button"
@@ -316,7 +318,6 @@ onMounted(loadProfiles);
       </button>
     </section>
 
-    <!-- Grid -->
     <section v-else class="browse-grid">
       <RouterLink
         v-for="card in paginatedCards"
@@ -345,17 +346,20 @@ onMounted(loadProfiles);
             <span v-if="card.role" class="browse-card__role">{{ card.role }}</span>
           </div>
           <p v-if="card.metaLine" class="browse-card__meta">{{ card.metaLine }}</p>
-          <p class="browse-card__summary">{{ card.summary || "소개를 준비 중입니다." }}</p>
+          <p class="browse-card__summary">{{ card.summary || "?? ??? ????." }}</p>
           <ul v-if="card.tags.length" class="browse-card__tags">
             <li v-for="tag in card.tags" :key="tag">{{ tag }}</li>
           </ul>
+          <ul class="browse-card__evidence" aria-label="Profile evidence">
+            <li v-for="badge in buildEvidenceBadges(card)" :key="badge">{{ badge }}</li>
+          </ul>
           <p v-if="filters.sort === 'githubCommits'" class="browse-card__commits">
-            GitHub 활동 {{ Number(card.githubCommitCount || 0).toLocaleString() }}개
+            GitHub ?쒕룞 {{ Number(card.githubCommitCount || 0).toLocaleString() }}
           </p>
         </div>
 
         <div class="browse-card__footer">
-          <span>프로필 보기</span>
+          <span>??? ??</span>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="9 18 15 12 9 6"/>
           </svg>
@@ -363,13 +367,13 @@ onMounted(loadProfiles);
       </RouterLink>
     </section>
 
-    <nav v-if="!isLoading && !errorMessage && totalPages > 1" class="browse-pagination" aria-label="프로필 페이지">
+    <nav v-if="!isLoading && !errorMessage && totalPages > 1" class="browse-pagination" aria-label="??? ???">
       <button type="button" :disabled="currentPage === 1" @click="goToPage(currentPage - 1)">
-        이전
+        ??
       </button>
       <span>{{ currentPage }} / {{ totalPages }}</span>
       <button type="button" :disabled="currentPage === totalPages" @click="goToPage(currentPage + 1)">
-        다음
+        ?ㅼ쓬
       </button>
     </nav>
   </div>
@@ -381,7 +385,6 @@ onMounted(loadProfiles);
   gap: 18px;
 }
 
-/* ── Hero ── */
 .browse-hero {
   display: flex;
   align-items: flex-end;
@@ -396,7 +399,17 @@ onMounted(loadProfiles);
   gap: 8px;
 }
 
+.browse-hero__eyebrow {
+  margin: 0;
+  color: var(--brand-main);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .browse-hero__copy h1 {
+  max-width: 720px;
   margin: 0;
   font-size: clamp(2rem, 3.2vw, 2.8rem);
   font-weight: 750;
@@ -405,6 +418,7 @@ onMounted(loadProfiles);
 }
 
 .browse-hero__copy p {
+  max-width: 62ch;
   margin: 0;
   color: var(--text-sub);
   font-size: 1.02rem;
@@ -436,7 +450,6 @@ onMounted(loadProfiles);
   font-size: 0.82rem;
 }
 
-/* ── Filter Bar ── */
 .browse-filters {
   display: flex;
   align-items: center;
@@ -529,7 +542,8 @@ onMounted(loadProfiles);
   box-shadow: 0 0 0 2px var(--brand-ring);
 }
 
-.browse-job-filters {
+.browse-job-filters,
+.browse-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -550,13 +564,6 @@ onMounted(loadProfiles);
   border-color: var(--brand-main);
   background: var(--brand-main);
   color: #fff;
-}
-
-/* ── Filter Chips ── */
-.browse-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
 }
 
 .browse-chip {
@@ -590,7 +597,6 @@ onMounted(loadProfiles);
   color: var(--text-strong);
 }
 
-/* ── Result Count ── */
 .browse-result-count {
   margin: 0;
   color: var(--text-sub);
@@ -603,7 +609,6 @@ onMounted(loadProfiles);
   font-weight: 700;
 }
 
-/* ── Skeleton Loading ── */
 .browse-skeleton {
   justify-self: center;
   width: 100%;
@@ -648,7 +653,6 @@ onMounted(loadProfiles);
   height: 14px;
 }
 
-/* ── Empty State ── */
 .browse-empty {
   display: flex;
   flex-direction: column;
@@ -673,7 +677,7 @@ onMounted(loadProfiles);
 .browse-empty h2 {
   margin: 0;
   font-size: 1.2rem;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 
 .browse-empty p {
@@ -698,14 +702,12 @@ onMounted(loadProfiles);
   background: var(--brand-strong);
 }
 
-/* ── Card Grid ── */
 .browse-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 18px;
 }
 
-/* ── Card ── */
 .browse-card {
   justify-self: center;
   display: flex;
@@ -721,7 +723,7 @@ onMounted(loadProfiles);
     border-color var(--duration-fast) var(--ease-out),
     box-shadow var(--duration-fast) var(--ease-out);
   content-visibility: auto;
-  contain-intrinsic-size: auto 360px;
+  contain-intrinsic-size: auto 390px;
 }
 
 .browse-card:hover {
@@ -762,7 +764,7 @@ onMounted(loadProfiles);
 .browse-card__body {
   padding: 14px 18px 12px;
   display: grid;
-  gap: 6px;
+  gap: 8px;
   flex: 1;
 }
 
@@ -775,7 +777,8 @@ onMounted(loadProfiles);
 
 .browse-card__top h2,
 .browse-card__meta,
-.browse-card__summary {
+.browse-card__summary,
+.browse-card__commits {
   margin: 0;
 }
 
@@ -811,7 +814,8 @@ onMounted(loadProfiles);
   overflow: hidden;
 }
 
-.browse-card__tags {
+.browse-card__tags,
+.browse-card__evidence {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
@@ -829,8 +833,16 @@ onMounted(loadProfiles);
   font-weight: 500;
 }
 
+.browse-card__evidence li {
+  padding: 3px 8px;
+  border-radius: var(--radius-xs);
+  background: var(--success-soft);
+  color: var(--success-text);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
 .browse-card__commits {
-  margin: 2px 0 0;
   color: var(--brand-strong);
   font-size: 0.82rem;
   font-weight: 800;
@@ -881,7 +893,6 @@ onMounted(loadProfiles);
   font-weight: 800;
 }
 
-/* ── Responsive ── */
 @media (max-width: 1024px) {
   .browse-filters {
     flex-wrap: wrap;

@@ -7,7 +7,8 @@ const isGithubUrl = (value) => /^https:\/\/(www\.)?github\.com\/.+/i.test(toText
 const STATUS_LABELS = {
   draft: "초안",
   review: "검토 중",
-  approved: "승인",
+  approved: "승인됨",
+  banned: "차단됨",
 };
 
 export const buildProfileSections = (profile = {}, projects = [], htmlContent = "") => {
@@ -21,14 +22,14 @@ export const buildProfileSections = (profile = {}, projects = [], htmlContent = 
   const taxonomyLine = [profile.school, profile.department]
     .map(toText)
     .filter(Boolean)
-    .join(" · ");
+    .join(" / ");
   const metaItems = [
     profile.school ? { label: "학교", value: profile.school } : null,
     profile.department ? { label: "학과", value: profile.department } : null,
   ].filter(Boolean);
 
   return {
-    cleanDescription: stripHtml(profile.description) || "소개를 준비 중입니다.",
+    cleanDescription: stripHtml(profile.description) || "아직 자기소개를 작성하지 않았습니다.",
     taxonomyLine,
     metaItems,
     statusLabel: STATUS_LABELS[profile.reviewStatus] || STATUS_LABELS.draft,
