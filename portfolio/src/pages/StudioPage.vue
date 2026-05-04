@@ -136,14 +136,14 @@ const visibilityToggle = computed(() =>
   buildVisibilityToggleCopy(profileForm.isVisible),
 );
 const qualityTasks = computed(() => [
-  { label: "?? ??", done: Boolean(profileForm.name.trim()) },
-  { label: "?щ쭩 遺꾩빞 ?좏깮", done: Boolean(profileForm.job.trim()) },
+  { label: "이름", done: Boolean(profileForm.name.trim()) },
+  { label: "희망 분야 선택", done: Boolean(profileForm.job.trim()) },
   {
-    label: `?? ${MIN_DESCRIPTION_LENGTH}? ??`,
+    label: `소개 ${MIN_DESCRIPTION_LENGTH}자 이상`,
     done: profileForm.description.trim().length >= MIN_DESCRIPTION_LENGTH,
   },
   { label: "GitHub URL", done: /^https:\/\/github\.com\//i.test(profileForm.github.trim()) },
-  { label: "???? 1? ??", done: portfolioItems.value.length > 0 },
+  { label: "프로젝트 1개 이상", done: portfolioItems.value.length > 0 },
 ]);
 const descriptionLength = computed(() => profileForm.description.trim().length);
 const descriptionRemaining = computed(() =>
@@ -174,15 +174,15 @@ const imageCropStyle = computed(() => {
   });
 });
 const noteLabelMap = {
-  extraIntroduction: "?? ??",
-  exhibitionNote: "?꾩떆 硫붾え",
-  processNote: "?? ??",
+  extraIntroduction: "추가 소개",
+  exhibitionNote: "전시 메모",
+  processNote: "제작 과정",
 };
 const isHttpUrl = (value) => /^https?:\/\/.+/i.test(String(value || "").trim());
 
 const scrollToSectionForLabel = (label) => {
-  if (label === "????") return "studio-projects";
-  if (label === "?? ??") return "studio-details";
+  if (label === "프로젝트") return "studio-projects";
+  if (label === "상세 정보") return "studio-details";
   return "studio-profile";
 };
 
@@ -227,7 +227,7 @@ const loadPage = async () => {
   try {
     authState.value = await getAuthState({ force: true });
     if (!authState.value.user) {
-      pageError.value = "?????? ???? ????? ????????? ???? ????? ???.";
+      pageError.value = "로그인이 필요합니다. SDHS 학생 계정으로 로그인해 주세요.";
       return;
     }
 
@@ -238,7 +238,7 @@ const loadPage = async () => {
     }
 
     if (targetProfileId.value && !authState.value.isAdmin) {
-      pageError.value = "?? ??? ???? ??? ??? ????.";
+      pageError.value = "다른 학생의 프로필을 수정할 권한이 없습니다.";
       return;
     }
 
@@ -253,7 +253,7 @@ const loadPage = async () => {
     if (error.status === 404) {
       await applyProfile(null);
     } else {
-      pageError.value = error.message || "????? ???? ?????.";
+      pageError.value = error.message || "프로필을 불러오지 못했습니다.";
     }
   } finally {
     isLoading.value = false;
@@ -368,7 +368,7 @@ const handleSaveProfile = async () => {
       ? await updateProfile(currentProfile.value.id, payload)
       : await createProfile(payload);
 
-    showSuccess(currentProfile.value?.id ? "?? ??? ??????." : "?????? ??????. ?? ????? ?????.");
+    showSuccess(currentProfile.value?.id ? "프로필을 저장했습니다." : "프로필을 만들었습니다. 이제 프로젝트를 추가하세요.");
     saveState.value = "success";
     selectedImage.value = null;
     if (previewObjectUrl) {
@@ -378,7 +378,7 @@ const handleSaveProfile = async () => {
     await applyProfile(nextProfile);
     authState.value = await getAuthState({ force: true });
   } catch (error) {
-    saveMessage.value = error.message || "???? ???? ?????.";
+    saveMessage.value = error.message || "프로필 저장에 실패했습니다.";
     showError(saveMessage.value);
     saveState.value = "error";
   } finally {
@@ -398,13 +398,13 @@ const handleToggleVisibility = async () => {
     const updated = await updateProfile(currentProfile.value.id, { isVisible: nextVisible });
     currentProfile.value = updated;
     profileForm.isVisible = updated.isVisible !== false;
-    saveMessage.value = profileForm.isVisible ? "???? ???????." : "???? ???? ???????.";
+    saveMessage.value = profileForm.isVisible ? "프로필을 공개했습니다." : "프로필을 비공개로 전환했습니다.";
     saveState.value = "success";
     showSuccess(saveMessage.value);
     authState.value = await getAuthState({ force: true });
   } catch (error) {
     profileForm.isVisible = previousVisible;
-    saveMessage.value = error.message || "?? ??? ???? ?????.";
+    saveMessage.value = error.message || "공개 상태를 변경하지 못했습니다.";
     saveState.value = "error";
     showError(saveMessage.value);
   } finally {
@@ -415,17 +415,17 @@ const handleToggleVisibility = async () => {
 const handleDeleteProfile = async () => {
   if (!currentProfile.value?.id || isDeletingProfile.value) return;
 
-  const shouldDelete = window.confirm("? ???? ?? ????? ?????? ? ??? ??? ? ????.");
+  const shouldDelete = window.confirm("이 프로필과 프로젝트를 삭제합니다. 계속할까요?");
   if (!shouldDelete) return;
 
   isDeletingProfile.value = true;
   try {
     await deleteProfile(currentProfile.value.id);
-    showSuccess("???? ??????.");
+    showSuccess("프로필을 삭제했습니다.");
     authState.value = await getAuthState({ force: true });
     await router.replace("/");
   } catch (error) {
-    saveMessage.value = error.message || "???? ???? ?????.";
+    saveMessage.value = error.message || "프로필 삭제에 실패했습니다.";
     saveState.value = "error";
     showError(saveMessage.value);
   } finally {
@@ -435,7 +435,7 @@ const handleDeleteProfile = async () => {
 
 const handleSaveNotes = async () => {
   if (!currentProfile.value?.id) {
-    notesMessage.value = "?? ??? ???? ?? ?? ???? ?? ?????.";
+    notesMessage.value = "기본 프로필을 먼저 저장한 뒤 상세 정보를 저장하세요.";
     notesState.value = "error";
     showError(notesMessage.value);
     return;
@@ -451,11 +451,11 @@ const handleSaveNotes = async () => {
     });
     const saved = await saveProfileHtml(currentProfile.value.id, html);
     applyAdvancedNotes(saved.html || "");
-    notesMessage.value = "?? ??? ??????.";
+    notesMessage.value = "상세 정보를 저장했습니다.";
     notesState.value = "success";
     showSuccess(notesMessage.value);
   } catch (error) {
-    notesMessage.value = error.message || "?? ??? ???? ?????.";
+    notesMessage.value = error.message || "상세 정보를 저장하지 못했습니다.";
     notesState.value = "error";
   } finally {
     isSavingNotes.value = false;
@@ -464,7 +464,7 @@ const handleSaveNotes = async () => {
 
 const handleCreatePortfolioItem = async (payload) => {
   if (!currentProfile.value?.id) {
-    saveMessage.value = "????? ???? ?? ?? ???? ?? ?????.";
+    saveMessage.value = "프로젝트를 추가하려면 기본 프로필을 먼저 저장하세요.";
     saveState.value = "error";
     return;
   }
@@ -475,11 +475,11 @@ const handleCreatePortfolioItem = async (payload) => {
     const created = await createPortfolioItem(payload);
     portfolioItems.value = [created, ...portfolioItems.value];
     newItemDraft.value = createEmptyProjectDraft();
-    saveMessage.value = "????? ??????.";
+    saveMessage.value = "프로젝트를 추가했습니다.";
     saveState.value = "success";
     showSuccess(saveMessage.value);
   } catch (error) {
-    saveMessage.value = error.message || "????? ???? ?????.";
+    saveMessage.value = error.message || "프로젝트 추가에 실패했습니다.";
     saveState.value = "error";
   } finally {
     isSavingNewItem.value = false;
@@ -499,7 +499,7 @@ const cancelEditingItem = () => {
 const handleDeletePortfolioItem = async (item) => {
   if (!item?.id || deletingItemId.value) return;
 
-  const shouldDelete = window.confirm(`"${item.title || "????"}" ????? ?????? ? ??? ??? ? ????.`);
+  const shouldDelete = window.confirm(`"${item.title || "프로젝트"}" 프로젝트를 삭제합니다. 계속할까요?`);
   if (!shouldDelete) return;
 
   deletingItemId.value = item.id;
@@ -508,11 +508,11 @@ const handleDeletePortfolioItem = async (item) => {
     await deletePortfolioItem(item.id);
     portfolioItems.value = removeProjectById(portfolioItems.value, item.id);
     if (editingItemId.value === item.id) cancelEditingItem();
-    saveMessage.value = "????? ??????.";
+    saveMessage.value = "프로젝트를 삭제했습니다.";
     saveState.value = "success";
     showSuccess(saveMessage.value);
   } catch (error) {
-    saveMessage.value = error.message || "????? ???? ?????.";
+    saveMessage.value = error.message || "프로젝트 삭제에 실패했습니다.";
     saveState.value = "error";
     showError(saveMessage.value);
   } finally {
@@ -530,12 +530,12 @@ const handleUpdateExistingItem = async (payload) => {
     portfolioItems.value = portfolioItems.value.map((item) =>
       item.id === updated.id ? updated : item,
     );
-    saveMessage.value = "????? ??????.";
+    saveMessage.value = "프로젝트를 수정했습니다.";
     saveState.value = "success";
     showSuccess(saveMessage.value);
     cancelEditingItem();
   } catch (error) {
-    saveMessage.value = error.message || "????? ???? ?????.";
+    saveMessage.value = error.message || "프로젝트 수정에 실패했습니다.";
     saveState.value = "error";
   } finally {
     isSavingExistingItem.value = false;
@@ -677,7 +677,7 @@ onUnmounted(() => {
             </label>
 
             <label>
-              <span>??? ???</span>
+              <span>프로필 사진</span>
               <input name="profile-image" type="file" accept="image/png,image/jpeg,image/webp" @change="handleImageChange" />
             </label>
           </div>
@@ -686,33 +686,33 @@ onUnmounted(() => {
             <div class="studio-page__image-cropper-preview">
               <img
                 :src="previewImage"
-                :alt="selectedImage ? '??? ??? ????' : '?? ??? ???'"
+                :alt="selectedImage ? '새 프로필 사진' : '현재 프로필 사진'"
                 :style="selectedImage ? imageCropStyle : null"
                 @load="selectedImage && handleCropImageLoad($event)"
               />
             </div>
             <div v-if="selectedImage" class="studio-page__crop-controls">
               <label>
-                <span>X ?꾩튂</span>
+                <span>X 위치</span>
                 <input v-model.number="imageCrop.x" type="range" min="0" max="100" />
               </label>
               <label>
-                <span>Y ?꾩튂</span>
+                <span>Y 위치</span>
                 <input v-model.number="imageCrop.y" type="range" min="0" max="100" />
               </label>
               <label>
-                <span>?뺣?</span>
+                <span>확대</span>
                 <input v-model.number="imageCrop.zoom" type="range" min="1" max="2.4" step="0.05" />
               </label>
             </div>
-            <p v-else class="studio-page__crop-note">? ???? ???? ??? ?? ??? ??? ? ????.</p>
+            <p v-else class="studio-page__crop-note">새 사진을 선택하면 위치와 확대 비율을 조정할 수 있습니다.</p>
           </div>
 
           <p v-if="saveMessage" class="studio-page__message" :data-state="saveState">{{ saveMessage }}</p>
 
           <div v-if="currentProfile?.id" class="studio-page__visibility-panel">
             <div>
-              <span>?? ??</span>
+              <span>공개 상태</span>
               <strong :data-visible="profileForm.isVisible">
                 {{ visibilityToggle.statusLabel }}
               </strong>
@@ -723,7 +723,7 @@ onUnmounted(() => {
               :disabled="isSavingVisibility"
               @click="handleToggleVisibility"
             >
-              {{ isSavingVisibility ? "?? ?..." : visibilityToggle.actionLabel }}
+              {{ isSavingVisibility ? "저장 중..." : visibilityToggle.actionLabel }}
             </button>
             <button
               type="button"
@@ -731,13 +731,13 @@ onUnmounted(() => {
               :disabled="isDeletingProfile"
               @click="handleDeleteProfile"
             >
-              {{ isDeletingProfile ? "?? ?..." : "??? ??" }}
+              {{ isDeletingProfile ? "삭제 중..." : "프로필 삭제" }}
             </button>
           </div>
 
           <label v-else class="studio-page__consent">
             <input v-model="profileForm.isVisible" type="checkbox" name="profile-visible" />
-            <span>???? ?? ? ?? ??? ?????.</span>
+            <span>프로필을 공개 목록에 표시합니다.</span>
           </label>
 
           <div class="studio-page__actions">
@@ -789,12 +789,12 @@ onUnmounted(() => {
               <div class="studio-page__project-copy">
                 <div>
                   <p class="studio-page__project-eyebrow">
-                    {{ item.isFeatured ? "?? ????" : "????" }}
+                    {{ item.isFeatured ? "대표 프로젝트" : "프로젝트" }}
                   </p>
-                  <h3>{{ item.title || "?? ?? ????" }}</h3>
+                  <h3>{{ item.title || "제목 없는 프로젝트" }}</h3>
                 </div>
-                <p>{{ item.description || "??? ????." }}</p>
-                <p v-if="item.contribution"><strong>???븷</strong> {{ item.contribution }}</p>
+                <p>{{ item.description || "설명이 없습니다." }}</p>
+                <p v-if="item.contribution"><strong>내 역할</strong> {{ item.contribution }}</p>
                 <ul v-if="item.tags.length" class="studio-page__project-tags">
                   <li v-for="tag in item.tags" :key="tag">{{ tag }}</li>
                 </ul>
@@ -805,13 +805,13 @@ onUnmounted(() => {
                   target="_blank"
                   rel="noreferrer"
                 >
-                  ??? ??
+                  결과물 보기
                 </a>
               </div>
 
               <div class="studio-page__project-actions">
                 <button type="button" class="studio-page__ghost-button" @click="startEditingItem(item)">
-                  ??
+                  수정
                 </button>
                 <button
                   type="button"
@@ -819,7 +819,7 @@ onUnmounted(() => {
                   :disabled="deletingItemId === item.id"
                   @click="handleDeletePortfolioItem(item)"
                 >
-                  {{ deletingItemId === item.id ? "??젣 以?.." : "??젣" }}
+                  {{ deletingItemId === item.id ? "삭제 중..." : "삭제" }}
                 </button>
               </div>
 
@@ -827,12 +827,12 @@ onUnmounted(() => {
                 <PortfolioItemForm
                   v-model="editingItemDraft"
                   :busy="isSavingExistingItem"
-                  submit-label="???? ??"
+                  submit-label="프로젝트 수정"
                   @submit="handleUpdateExistingItem"
                 />
 
                 <button type="button" class="studio-page__ghost-button" @click="cancelEditingItem">
-                  痍⑥냼
+                  취소
                 </button>
               </div>
             </article>
@@ -877,7 +877,7 @@ onUnmounted(() => {
                   v-model="customAdvancedHtml"
                   name="advanced-html"
                   rows="14"
-                  placeholder="<section><p>?? ??? ??</p></section>"
+                  placeholder="<section><p>추가 기록</p></section>"
                 />
               </label>
             </section>

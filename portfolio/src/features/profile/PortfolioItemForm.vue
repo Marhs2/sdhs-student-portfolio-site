@@ -102,13 +102,13 @@ const actionHint = computed(() => {
   }
 
   if (validationState.value.canSubmit) {
-    return "??? ? ????. ??? ???? ?? ????? ??? ??? ? ????.";
+    return "저장할 수 있습니다. 필요한 정보가 모두 입력되었습니다.";
   }
 
-  return validationState.value.message || "?꾩닔 ??ぉ??癒쇱? 梨꾩썙二쇱꽭??";
+  return validationState.value.message || "필수 항목을 먼저 채워주세요.";
 });
 
-const isEditing = computed(() => props.submitLabel.includes("??"));
+const isEditing = computed(() => props.submitLabel.includes("수정"));
 
 const handleSubmit = () => {
   validationMessage.value = validationState.value.message;
@@ -134,7 +134,7 @@ const handleSubmit = () => {
   <section class="portfolio-item-form" :data-ready="validationState.canSubmit" :data-disabled="disabled">
     <header class="portfolio-item-form__header">
       <div class="portfolio-item-form__intro">
-        <span>{{ isEditing ? "???? ??" : "? ????" }}</span>
+        <span>{{ isEditing ? "프로젝트 수정" : "새 프로젝트" }}</span>
         <h3>{{ submitLabel }}</h3>
         <p>작업 이름, 내 역할, 확인 가능한 링크나 미디어를 함께 남겨주세요.</p>
       </div>
@@ -164,26 +164,26 @@ const handleSubmit = () => {
 
       <div class="portfolio-item-form__grid">
         <label>
-          <span :id="`${fieldId}-title-label`">???? ??</span>
+          <span :id="`${fieldId}-title-label`">프로젝트 제목</span>
           <input
             v-model="form.title"
             :aria-labelledby="`${fieldId}-title-label`"
             :aria-invalid="validationMessage && !form.title.trim() ? 'true' : 'false'"
             name="project-title"
             type="text"
-            placeholder="議몄뾽 ?꾩떆 ?뱀궗?댄듃"
+            placeholder="졸업 전시 웹사이트"
             required
           />
         </label>
 
         <label>
-          <span :id="`${fieldId}-contribution-label`">???븷</span>
+          <span :id="`${fieldId}-contribution-label`">내 역할</span>
           <input
             v-model="form.contribution"
             :aria-labelledby="`${fieldId}-contribution-label`"
             name="project-contribution"
             type="text"
-            placeholder="UI ?붿옄?? API ?곕룞"
+            placeholder="UI 디자인, API 연동"
           />
         </label>
 
@@ -232,7 +232,7 @@ const handleSubmit = () => {
         </label>
 
         <label class="portfolio-item-form__wide">
-          <span :id="`${fieldId}-website-label`">?뱀궗?댄듃 留곹겕</span>
+          <span :id="`${fieldId}-website-label`">웹사이트 링크</span>
           <input
             v-model="form.websiteUrl"
             :aria-labelledby="`${fieldId}-website-label`"
@@ -244,7 +244,7 @@ const handleSubmit = () => {
         </label>
 
         <label>
-          <span :id="`${fieldId}-video-label`">?? URL</span>
+          <span :id="`${fieldId}-video-label`">영상 URL</span>
           <input
             v-model="form.videoUrl"
             :aria-labelledby="`${fieldId}-video-label`"
@@ -256,7 +256,7 @@ const handleSubmit = () => {
         </label>
 
         <label>
-          <span :id="`${fieldId}-image-label`">??? URL</span>
+          <span :id="`${fieldId}-image-label`">이미지 URL</span>
           <input
             v-model="form.imageUrl"
             :aria-labelledby="`${fieldId}-image-label`"
@@ -269,7 +269,7 @@ const handleSubmit = () => {
 
         <label class="portfolio-item-form__checkbox">
           <input v-model="form.isFeatured" name="project-featured" type="checkbox" />
-          <span>?? ????? ??</span>
+          <span>대표 프로젝트로 표시</span>
         </label>
       </fieldset>
     </details>
@@ -300,7 +300,7 @@ const handleSubmit = () => {
         :disabled="busy || disabled"
         @click="handleSubmit"
       >
-        {{ busy ? "???以?.." : submitLabel }}
+        {{ busy ? "저장 중..." : submitLabel }}
       </button>
     </div>
   </section>

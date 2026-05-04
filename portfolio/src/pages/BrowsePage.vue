@@ -84,7 +84,7 @@ const loadCommitCounts = async () => {
   const requestId = ++commitCountRequestId;
   const usernames = profiles.value.map((profile) => extractGithubUsername(profile.github)).filter(Boolean);
   if (!usernames.length) {
-    commitCountMessage.value = "?? GitHub URL? ??? ???? ????.";
+    commitCountMessage.value = "연결된 GitHub URL이 없어 활동순 정렬을 건너뜁니다.";
     commitCounts.value = {};
     return;
   }
@@ -98,7 +98,7 @@ const loadCommitCounts = async () => {
     }
   } catch (error) {
     if (requestId === commitCountRequestId) {
-      commitCountMessage.value = error.message || "GitHub ??? ???? ?????.";
+      commitCountMessage.value = error.message || "GitHub 활동을 불러오지 못했습니다.";
     }
   } finally {
     if (requestId === commitCountRequestId) {
@@ -116,7 +116,7 @@ const loadProfiles = async () => {
     isLoading.value = false;
     void loadCommitCounts();
   } catch (error) {
-    errorMessage.value = error.message || "?? ????? ??? ???? ?????.";
+    errorMessage.value = error.message || "학생 목록을 불러오지 못했습니다.";
     isLoading.value = false;
   }
 };
@@ -295,7 +295,7 @@ onMounted(loadProfiles);
     <StatusView
       v-else-if="errorMessage"
       state="error"
-      title="???? ???? ?????."
+      title="학생 목록을 불러오지 못했습니다."
       :body="errorMessage"
     />
 
@@ -346,7 +346,7 @@ onMounted(loadProfiles);
             <span v-if="card.role" class="browse-card__role">{{ card.role }}</span>
           </div>
           <p v-if="card.metaLine" class="browse-card__meta">{{ card.metaLine }}</p>
-          <p class="browse-card__summary">{{ card.summary || "?? ??? ????." }}</p>
+          <p class="browse-card__summary">{{ card.summary || "아직 소개가 없습니다." }}</p>
           <ul v-if="card.tags.length" class="browse-card__tags">
             <li v-for="tag in card.tags" :key="tag">{{ tag }}</li>
           </ul>
@@ -354,12 +354,12 @@ onMounted(loadProfiles);
             <li v-for="badge in buildEvidenceBadges(card)" :key="badge">{{ badge }}</li>
           </ul>
           <p v-if="filters.sort === 'githubCommits'" class="browse-card__commits">
-            GitHub ?쒕룞 {{ Number(card.githubCommitCount || 0).toLocaleString() }}
+            GitHub 활동 {{ Number(card.githubCommitCount || 0).toLocaleString() }}
           </p>
         </div>
 
         <div class="browse-card__footer">
-          <span>??? ??</span>
+          <span>자세히 보기</span>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="9 18 15 12 9 6"/>
           </svg>
@@ -367,13 +367,13 @@ onMounted(loadProfiles);
       </RouterLink>
     </section>
 
-    <nav v-if="!isLoading && !errorMessage && totalPages > 1" class="browse-pagination" aria-label="??? ???">
+    <nav v-if="!isLoading && !errorMessage && totalPages > 1" class="browse-pagination" aria-label="페이지 이동">
       <button type="button" :disabled="currentPage === 1" @click="goToPage(currentPage - 1)">
-        ??
+        이전
       </button>
       <span>{{ currentPage }} / {{ totalPages }}</span>
       <button type="button" :disabled="currentPage === totalPages" @click="goToPage(currentPage + 1)">
-        ?ㅼ쓬
+        다음
       </button>
     </nav>
   </div>
