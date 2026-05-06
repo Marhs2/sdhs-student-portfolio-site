@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  ADMIN_PAGE_SIZE,
   applyAdminDraftPatch,
+  buildAdminPagination,
+  buildAdminPageItems,
   buildAdminRows,
   buildAdminSummary,
   buildDirtyAdminRows,
@@ -154,6 +157,33 @@ test("buildAdminRows applies quick operational filters", () => {
     ).map((row) => row.id),
     [4],
   );
+});
+
+test("buildAdminPagination returns five rows and clamps page bounds", () => {
+  const rows = Array.from({ length: 12 }, (_, index) => ({ id: index + 1 }));
+
+  const secondPage = buildAdminPagination({ rows, currentPage: 2 });
+  assert.equal(ADMIN_PAGE_SIZE, 5);
+  assert.deepEqual(secondPage.paginatedRows.map((row) => row.id), [6, 7, 8, 9, 10]);
+  assert.equal(secondPage.totalPages, 3);
+  assert.equal(secondPage.pageStart, 6);
+  assert.equal(secondPage.pageEnd, 10);
+
+  const clampedPage = buildAdminPagination({ rows, currentPage: 99 });
+  assert.equal(clampedPage.safePage, 3);
+  assert.deepEqual(clampedPage.paginatedRows.map((row) => row.id), [11, 12]);
+
+  const emptyPage = buildAdminPagination({ rows: [], currentPage: 2 });
+  assert.equal(emptyPage.safePage, 1);
+  assert.equal(emptyPage.pageStart, 0);
+  assert.equal(emptyPage.pageEnd, 0);
+});
+
+test("buildAdminPageItems keeps pagination controls compact", () => {
+  assert.deepEqual(buildAdminPageItems({ currentPage: 1, totalPages: 4 }), [1, 2, 3, 4]);
+  assert.deepEqual(buildAdminPageItems({ currentPage: 1, totalPages: 12 }), [1, 2, 3, "...", 12]);
+  assert.deepEqual(buildAdminPageItems({ currentPage: 6, totalPages: 12 }), [1, "...", 5, 6, 7, "...", 12]);
+  assert.deepEqual(buildAdminPageItems({ currentPage: 12, totalPages: 12 }), [1, "...", 10, 11, 12]);
 });
 
 test("admin draft helpers sync and detect unsaved changes", () => {

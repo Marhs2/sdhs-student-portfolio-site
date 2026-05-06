@@ -7,6 +7,7 @@ import StatusView from "../shared/ui/StatusView.vue";
 import { showSuccess, showError } from "../shared/ui/toast.js";
 import {
   applyAdminDraftPatch,
+  buildAdminPagination,
   buildDirtyAdminRows,
   buildAdminRows,
   buildAdminSummary,
@@ -49,6 +50,7 @@ const authState = ref({
 const saveStates = reactive({});
 const selectedIds = reactive({});
 const bulkSaveState = ref("");
+const currentPage = ref(1);
 const departmentDraft = ref("");
 const departmentState = ref("");
 const githubStatus = ref(null);
@@ -116,6 +118,8 @@ const loadProfiles = async () => {
 const summary = computed(() => buildAdminSummary(adminProfiles.value));
 
 const rows = computed(() => buildAdminRows(adminProfiles.value, filters));
+const pageState = computed(() => buildAdminPagination({ rows: rows.value, currentPage: currentPage.value }));
+const paginatedRows = computed(() => pageState.value.paginatedRows);
 const quickFilters = computed(() => [
   { key: "all", label: "전체", count: adminProfiles.value.length },
   { key: "needsWork", label: "보완 필요", count: summary.value.needsWork },
@@ -147,7 +151,7 @@ const activeFilterText = computed(() =>
   activeFilterCount.value ? `${activeFilterCount.value}개 조건 적용` : "전체 목록",
 );
 const allRowsSelected = computed(
-  () => rows.value.length > 0 && rows.value.every((row) => selectedIds[row.id]),
+  () => paginatedRows.value.length > 0 && paginatedRows.value.every((row) => selectedIds[row.id]),
 );
 
 const showAccessGate = computed(() =>
@@ -186,15 +190,19 @@ const clearSelection = () => {
 
 const toggleAllRows = () => {
   if (allRowsSelected.value) {
-    rows.value.forEach((row) => {
+    paginatedRows.value.forEach((row) => {
       delete selectedIds[row.id];
     });
     return;
   }
 
-  rows.value.forEach((row) => {
+  paginatedRows.value.forEach((row) => {
     selectedIds[row.id] = true;
   });
+};
+
+const goToPage = (page) => {
+  currentPage.value = Math.min(Math.max(1, Number(page) || 1), pageState.value.totalPages);
 };
 
 const resetFilters = () => {
@@ -449,7 +457,18 @@ watch(
   },
 );
 
+watch(
+  () => [filters.search, filters.quickView, filters.reviewStatus, filters.visibility, filters.sort],
+  () => {
+    currentPage.value = 1;
+  },
+);
+
 watch(rows, () => {
+  if (currentPage.value !== pageState.value.safePage) {
+    currentPage.value = pageState.value.safePage;
+  }
+
   const visibleIds = new Set(rows.value.map((row) => String(row.id)));
   Object.keys(selectedIds).forEach((id) => {
     if (!visibleIds.has(String(id))) {
@@ -625,7 +644,10 @@ onUnmounted(() => {
         <div class="admin-page__tool-strip">
           <div class="admin-page__tool-status" aria-live="polite">
             <strong>{{ rows.length }}명</strong>
-            <span>{{ activeFilterText }} · {{ selectedCount }}개 선택 · {{ dirtyCount }}개 저장 대기</span>
+            <span>
+              {{ activeFilterText }} · {{ pageState.pageStart }}-{{ pageState.pageEnd }} 표시 ·
+              {{ selectedCount }}개 선택 · {{ dirtyCount }}개 저장 대기
+            </span>
           </div>
 
           <label class="admin-page__quick-search">
@@ -687,7 +709,7 @@ onUnmounted(() => {
 
           <div class="admin-page__bulk-actions" aria-label="일괄 작업">
             <button type="button" class="admin-page__ghost-button" @click="toggleAllRows">
-              {{ allRowsSelected ? "선택 해제" : "현재 결과 선택" }}
+              {{ allRowsSelected ? "현재 페이지 해제" : "현재 페이지 선택" }}
             </button>
             <button
               type="button"
@@ -801,7 +823,7 @@ onUnmounted(() => {
 
         <section v-else class="admin-page__table">
           <article
-            v-for="row in rows"
+            v-for="row in paginatedRows"
             :key="row.id"
             class="admin-page__row"
             :data-selected="Boolean(selectedIds[row.id])"
@@ -975,6 +997,49 @@ onUnmounted(() => {
             </div>
           </article>
         </section>
+
+        <nav
+          v-if="rows.length > 0"
+          class="admin-page__pagination"
+          aria-label="관리자 프로필 페이지"
+        >
+          <p>
+            {{ pageState.pageStart }}-{{ pageState.pageEnd }} / {{ pageState.totalCount }}명
+          </p>
+          <div>
+            <button
+              type="button"
+              class="admin-page__ghost-button"
+              :disabled="pageState.safePage === 1"
+              @click="goToPage(pageState.safePage - 1)"
+            >
+              이전
+            </button>
+            <template v-for="(pageItem, index) in pageState.pageItems" :key="`${pageItem}-${index}`">
+              <span v-if="pageItem === '...'" class="admin-page__page-gap" aria-hidden="true">
+                ...
+              </span>
+              <button
+                v-else
+                type="button"
+                class="admin-page__page-button"
+                :data-active="pageState.safePage === pageItem"
+                :aria-current="pageState.safePage === pageItem ? 'page' : undefined"
+                @click="goToPage(pageItem)"
+              >
+                {{ pageItem }}
+              </button>
+            </template>
+            <button
+              type="button"
+              class="admin-page__ghost-button"
+              :disabled="pageState.safePage === pageState.totalPages"
+              @click="goToPage(pageState.safePage + 1)"
+            >
+              다음
+            </button>
+          </div>
+        </nav>
       </div>
     </div>
   </div>
@@ -1149,6 +1214,58 @@ onUnmounted(() => {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 10px;
+}
+
+.admin-page__pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface-solid);
+  box-shadow: var(--shadow-sm);
+}
+
+.admin-page__pagination p {
+  margin: 0;
+  color: var(--text-sub);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.admin-page__pagination div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.admin-page__page-button {
+  min-width: 40px;
+  min-height: 40px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-solid);
+  color: var(--text-strong);
+  font-weight: 800;
+}
+
+.admin-page__page-button[data-active="true"] {
+  border-color: var(--brand-main);
+  background: var(--brand-main);
+  color: #fff;
+}
+
+.admin-page__page-gap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  min-height: 40px;
+  color: var(--text-sub);
+  font-weight: 900;
 }
 
 .admin-page__gate {
@@ -1877,6 +1994,15 @@ onUnmounted(() => {
   }
 
   .admin-page__bulk-actions {
+    justify-content: flex-start;
+  }
+
+  .admin-page__pagination {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .admin-page__pagination div {
     justify-content: flex-start;
   }
 

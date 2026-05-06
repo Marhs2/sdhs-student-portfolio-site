@@ -1,5 +1,7 @@
 import { getProfileCompleteness } from "../../shared/catalog/profileCompleteness.js";
 
+export const ADMIN_PAGE_SIZE = 5;
+
 const toText = (value) => String(value ?? "").trim();
 const toSearchTokens = (value) => toText(value).toLowerCase().split(/\s+/).filter(Boolean);
 const hasGithubProfile = (profile = {}) => /^https:\/\/github\.com\/[^/\s]+\/?$/i.test(toText(profile.github));
@@ -173,4 +175,61 @@ export const buildAdminRows = (profiles = [], filters = {}) => {
       issues: getAdminProfileIssues(profile),
       reviewStatusLabel: REVIEW_STATUS_LABELS[profile.reviewStatus] || "초안",
     }));
+};
+
+export const buildAdminPagination = ({
+  rows = [],
+  currentPage = 1,
+  pageSize = ADMIN_PAGE_SIZE,
+} = {}) => {
+  const totalCount = rows.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const safePage = Math.min(Math.max(1, Number(currentPage) || 1), totalPages);
+  const pageStartIndex = (safePage - 1) * pageSize;
+
+  return {
+    paginatedRows: rows.slice(pageStartIndex, pageStartIndex + pageSize),
+    totalCount,
+    totalPages,
+    safePage,
+    pageStart: totalCount === 0 ? 0 : pageStartIndex + 1,
+    pageEnd: Math.min(safePage * pageSize, totalCount),
+    pageItems: buildAdminPageItems({ currentPage: safePage, totalPages }),
+  };
+};
+
+export const buildAdminPageItems = ({ currentPage = 1, totalPages = 1 } = {}) => {
+  const pageCount = Math.max(1, Number(totalPages) || 1);
+  const safePage = Math.min(Math.max(1, Number(currentPage) || 1), pageCount);
+
+  if (pageCount <= 5) {
+    return Array.from({ length: pageCount }, (_, index) => index + 1);
+  }
+
+  const pages = new Set([1, pageCount]);
+  const windowStart =
+    safePage <= 2
+      ? 2
+      : safePage >= pageCount - 1
+        ? Math.max(2, pageCount - 2)
+        : Math.max(2, safePage - 1);
+  const windowEnd =
+    safePage <= 2
+      ? Math.min(pageCount - 1, 3)
+      : safePage >= pageCount - 1
+        ? pageCount - 1
+        : Math.min(pageCount - 1, safePage + 1);
+
+  for (let page = windowStart; page <= windowEnd; page += 1) {
+    pages.add(page);
+  }
+
+  const sortedPages = [...pages].sort((left, right) => left - right);
+  return sortedPages.flatMap((page, index) => {
+    const previous = sortedPages[index - 1];
+    if (previous && page - previous > 1) {
+      return ["...", page];
+    }
+    return [page];
+  });
 };
