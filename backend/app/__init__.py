@@ -8,6 +8,7 @@ from time import monotonic
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import httpx
+from starlette.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -377,6 +378,7 @@ class SecurityAuditMiddleware(BaseHTTPMiddleware):
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    settings.upload_dir.mkdir(parents=True, exist_ok=True)
 
     app = FastAPI(title="Portfolio Directory API", lifespan=lifespan)
     app.add_middleware(SecurityAuditMiddleware)
@@ -404,5 +406,10 @@ def create_app() -> FastAPI:
     app.include_router(profiles_router)
     app.include_router(portfolio_items_router)
     app.include_router(uploads_router)
+    app.mount(
+        "/uploads",
+        StaticFiles(directory=str(settings.upload_dir), check_dir=False),
+        name="uploads",
+    )
 
     return app

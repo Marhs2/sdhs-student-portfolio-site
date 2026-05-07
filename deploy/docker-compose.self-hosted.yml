@@ -13,12 +13,15 @@ services:
       PORTFOLIO_ALLOWED_ORIGIN_REGEX: ${PORTFOLIO_ALLOWED_ORIGIN_REGEX:-}
       PORTFOLIO_ADMIN_EMAILS: ${PORTFOLIO_ADMIN_EMAILS:-}
       PORTFOLIO_MAX_UPLOAD_BYTES: ${PORTFOLIO_MAX_UPLOAD_BYTES:-5242880}
+      PORTFOLIO_UPLOAD_DIR: /app/uploads
       PORTFOLIO_PUBLIC_CACHE_TTL_SECONDS: ${PORTFOLIO_PUBLIC_CACHE_TTL_SECONDS:-30}
       PORTFOLIO_PUBLIC_CACHE_STALE_SECONDS: ${PORTFOLIO_PUBLIC_CACHE_STALE_SECONDS:-300}
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
       PORTFOLIO_GITHUB_COMMIT_CACHE_TTL_SECONDS: ${PORTFOLIO_GITHUB_COMMIT_CACHE_TTL_SECONDS:-900}
       PORTFOLIO_KEEPALIVE_URL: ${PORTFOLIO_KEEPALIVE_URL:-}
       PORTFOLIO_KEEPALIVE_INTERVAL_SECONDS: ${PORTFOLIO_KEEPALIVE_INTERVAL_SECONDS:-600}
+    volumes:
+      - upload_data:/app/uploads
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5).read()"]
       interval: 30s
@@ -55,5 +58,6 @@ services:
       - caddy_config:/config
 
 volumes:
+  upload_data:
   caddy_data:
   caddy_config:

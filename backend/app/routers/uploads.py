@@ -1,11 +1,12 @@
 import importlib.util
+import re
 import time
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
 from ..auth import get_current_user
 from ..config import get_settings
-from ..database import ensure_public_image_bucket, supabase
 from ..security_logging import log_security_event
 
 
@@ -17,6 +18,19 @@ IMAGE_EXTENSIONS = {
     "image/png": ".png",
     "image/webp": ".webp",
 }
+
+
+def _safe_upload_id(value: str) -> str:
+    normalized = re.sub(r"[^A-Za-z0-9-]+", "_", value or "").strip("_-")
+    return normalized or "user"
+
+
+def _profile_image_file_path(upload_dir: Path, user_id: str, extension: str) -> Path:
+    return upload_dir / "profiles" / f"{_safe_upload_id(user_id)}{extension}"
+
+
+def _profile_image_public_url(user_id: str, extension: str, *, version_ms: int) -> str:
+    return f"/uploads/profiles/{_safe_upload_id(user_id)}{extension}?v={version_ms}"
 
 
 def _detect_supported_image_content_type(contents: bytes) -> str:
@@ -50,7 +64,6 @@ if has_multipart:
                 detail="JPEG, PNG, WEBP 이미지만 업로드할 수 있습니다.",
             )
 
-        ensure_public_image_bucket()
         contents = await file.read(settings.max_upload_bytes + 1)
         if len(contents) > settings.max_upload_bytes:
             log_security_event(
@@ -100,29 +113,23 @@ if has_multipart:
             )
 
         extension = IMAGE_EXTENSIONS.get(detected_type, "")
-        file_path = f"profiles/{user['id']}{extension}"
-        bucket = supabase.storage.from_(settings.image_bucket)
-        file_options = {
-            "content-type": file.content_type,
-            "cache-control": "3600",
-            "upsert": "true",
-        }
+        file_path = _profile_image_file_path(settings.upload_dir, user["id"], extension)
+        public_url = _profile_image_public_url(
+            user["id"],
+            extension,
+            version_ms=int(time.time() * 1000),
+        )
 
         try:
-            try:
-                bucket.update(path=file_path, file=contents, file_options=file_options)
-            except Exception:
-                bucket.upload(path=file_path, file=contents, file_options=file_options)
-
-            public_url = bucket.get_public_url(file_path).rstrip("?")
-            public_url = f"{public_url}?v={int(time.time() * 1000)}"
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            file_path.write_bytes(contents)
             log_security_event(
                 "upload.profile_image_stored",
                 outcome="allowed",
                 actor_email=user.get("email"),
                 actor_profile_id=user.get("id"),
-                target_type="storage_object",
-                target_id=file_path,
+                target_type="local_upload",
+                target_id=str(file_path),
                 detected_content_type=detected_type,
                 bytes_read=len(contents),
             )
@@ -136,8 +143,8 @@ if has_multipart:
                 outcome="error",
                 severity="error",
                 actor_email=user.get("email"),
-                target_type="storage_object",
-                target_id=file_path,
+                target_type="local_upload",
+                target_id=str(file_path),
                 reason=type(exc).__name__,
                 detected_content_type=detected_type,
                 bytes_read=len(contents),

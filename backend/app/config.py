@@ -62,6 +62,7 @@ class Settings:
     allowed_origin_regex: str | None
     admin_emails: set[str]
     max_upload_bytes: int
+    upload_dir: Path
     public_cache_ttl_seconds: int
     public_cache_stale_seconds: int
     github_token: str
@@ -138,6 +139,12 @@ def get_settings() -> Settings:
     _assert_local_only_supabase_project(supabase_auth_url, allowed_origins)
 
     max_upload_bytes = int(os.getenv("PORTFOLIO_MAX_UPLOAD_BYTES", str(1024 * 1024)))
+    upload_dir = Path(
+        os.getenv(
+            "PORTFOLIO_UPLOAD_DIR",
+            str(Path(__file__).resolve().parents[1] / "uploads"),
+        ),
+    ).expanduser()
     public_cache_ttl_seconds = int(os.getenv("PORTFOLIO_PUBLIC_CACHE_TTL_SECONDS", "30"))
     public_cache_stale_seconds = int(os.getenv("PORTFOLIO_PUBLIC_CACHE_STALE_SECONDS", "300"))
     github_token = os.getenv("GITHUB_TOKEN", "").strip()
@@ -162,6 +169,7 @@ def get_settings() -> Settings:
         allowed_origin_regex=allowed_origin_regex,
         admin_emails=admin_emails,
         max_upload_bytes=max_upload_bytes,
+        upload_dir=upload_dir,
         public_cache_ttl_seconds=public_cache_ttl_seconds,
         public_cache_stale_seconds=public_cache_stale_seconds,
         github_token=github_token,

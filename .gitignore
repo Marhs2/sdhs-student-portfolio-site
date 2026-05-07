@@ -13,6 +13,7 @@ __pycache__/
 pytest-cache-files-*/
 backend/.pytest-tmp/
 .ruff_cache/
+backend/uploads/
 
 # Node/Vite
 node_modules/

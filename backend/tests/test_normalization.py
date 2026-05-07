@@ -52,6 +52,14 @@ class NormalizationTests(unittest.TestCase):
         self.assertEqual(clean_youtube_url("https://youtu.be/abc123"), "https://youtu.be/abc123")
         self.assertEqual(clean_youtube_url("https://vimeo.com/abc123"), "")
 
+    def test_clean_http_url_allows_local_upload_paths(self) -> None:
+        self.assertEqual(
+            clean_http_url("/uploads/profiles/student-1.webp?v=123"),
+            "/uploads/profiles/student-1.webp?v=123",
+        )
+        self.assertEqual(clean_http_url("/api/admin/settings"), "")
+        self.assertEqual(clean_http_url("//evil.example/avatar.webp"), "")
+
 
 if __name__ == "__main__":
     unittest.main()

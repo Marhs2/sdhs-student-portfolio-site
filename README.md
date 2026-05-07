@@ -101,6 +101,7 @@ npm run backend:dev
 | `PORTFOLIO_ALLOWED_ORIGIN_REGEX` | No | empty | 추가 허용 origin 정규식. 공유 `vercel.app` 전체 wildcard는 차단됨 |
 | `PORTFOLIO_ADMIN_EMAILS` | Recommended | empty | 서버 관리자 이메일 목록. 쉼표로 구분 |
 | `PORTFOLIO_MAX_UPLOAD_BYTES` | No | `1048576` | 업로드 이미지 최대 크기 |
+| `PORTFOLIO_UPLOAD_DIR` | No | `backend/uploads` | 로컬 이미지 업로드 저장 디렉터리. Docker 배포는 `/app/uploads` volume 사용 |
 | `PORTFOLIO_PUBLIC_CACHE_TTL_SECONDS` | No | `30` | 공개 목록 서버 캐시 TTL |
 | `PORTFOLIO_PUBLIC_CACHE_STALE_SECONDS` | No | `300` | Supabase 장애 시 stale 공개 응답 유지 시간 |
 | `GITHUB_TOKEN` | Optional | empty | GitHub 커밋 수 조회용 서버 토큰 |
@@ -200,7 +201,10 @@ SUPABASE_AUTH_SERVICE_ROLE_KEY=your_auth_service_role_key
 SUPABASE_DB_URL=https://your-db-project.supabase.co
 SUPABASE_DB_SERVICE_ROLE_KEY=your_db_service_role_key
 PORTFOLIO_ALLOWED_ORIGINS=https://portfolio.example.com
+PORTFOLIO_UPLOAD_DIR=/app/uploads
 ```
+
+이미지 URL은 하이브리드로 동작합니다. DB에 기존 Supabase Storage 절대 URL이 들어 있으면 그대로 Supabase에서 이미지를 가져오고, 새로 업로드한 이미지는 `/uploads/...` 상대 URL로 저장되어 자체 서버의 Docker volume에서 제공됩니다.
 
 실행:
 

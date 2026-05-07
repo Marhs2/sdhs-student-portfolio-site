@@ -237,6 +237,11 @@ def clean_http_url(value: str | None) -> str:
         return ""
 
     parsed = urlparse(url)
+    if not parsed.scheme and not parsed.netloc:
+        path_parts = [part for part in parsed.path.split("/") if part]
+        if parsed.path.startswith("/uploads/") and ".." not in path_parts:
+            return url
+        return ""
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
         return ""
     return url
