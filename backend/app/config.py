@@ -54,8 +54,10 @@ def _validate_allowed_origin_regex(value: str | None) -> str | None:
 
 @dataclass(frozen=True)
 class Settings:
-    supabase_url: str
-    supabase_service_role_key: str
+    supabase_auth_url: str
+    supabase_auth_service_role_key: str
+    supabase_db_url: str
+    supabase_db_service_role_key: str
     allowed_origins: list[str]
     allowed_origin_regex: str | None
     admin_emails: set[str]
@@ -69,8 +71,16 @@ class Settings:
     image_bucket: str = "user-img"
 
     @property
+    def supabase_url(self) -> str:
+        return self.supabase_db_url
+
+    @property
+    def supabase_service_role_key(self) -> str:
+        return self.supabase_db_service_role_key
+
+    @property
     def service_role_hint(self) -> str:
-        jwt_parts = self.supabase_service_role_key.split(".")
+        jwt_parts = self.supabase_db_service_role_key.split(".")
         if len(jwt_parts) < 2:
             return "unknown"
 
@@ -91,12 +101,30 @@ class Settings:
 def get_settings() -> Settings:
     load_dotenv(ENV_PATH, override=False)
 
-    supabase_url = os.getenv("SUPABASE_URL", "").strip()
-    supabase_service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+    legacy_supabase_url = os.getenv("SUPABASE_URL", "").strip()
+    legacy_supabase_service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+    supabase_auth_url = os.getenv("SUPABASE_AUTH_URL", legacy_supabase_url).strip()
+    supabase_auth_service_role_key = os.getenv(
+        "SUPABASE_AUTH_SERVICE_ROLE_KEY",
+        legacy_supabase_service_role_key,
+    ).strip()
+    supabase_db_url = os.getenv("SUPABASE_DB_URL", legacy_supabase_url).strip()
+    supabase_db_service_role_key = os.getenv(
+        "SUPABASE_DB_SERVICE_ROLE_KEY",
+        legacy_supabase_service_role_key,
+    ).strip()
 
-    if not supabase_url or not supabase_service_role_key:
+    if (
+        not supabase_auth_url
+        or not supabase_auth_service_role_key
+        or not supabase_db_url
+        or not supabase_db_service_role_key
+    ):
         raise RuntimeError(
-            "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables.",
+            "Missing Supabase environment variables. Configure SUPABASE_AUTH_URL, "
+            "SUPABASE_AUTH_SERVICE_ROLE_KEY, SUPABASE_DB_URL, and "
+            "SUPABASE_DB_SERVICE_ROLE_KEY, or use legacy SUPABASE_URL and "
+            "SUPABASE_SERVICE_ROLE_KEY.",
         )
 
     allowed_origins = [
@@ -107,7 +135,7 @@ def get_settings() -> Settings:
         ).split(",")
         if origin.strip()
     ]
-    _assert_local_only_supabase_project(supabase_url, allowed_origins)
+    _assert_local_only_supabase_project(supabase_auth_url, allowed_origins)
 
     max_upload_bytes = int(os.getenv("PORTFOLIO_MAX_UPLOAD_BYTES", str(1024 * 1024)))
     public_cache_ttl_seconds = int(os.getenv("PORTFOLIO_PUBLIC_CACHE_TTL_SECONDS", "30"))
@@ -126,8 +154,10 @@ def get_settings() -> Settings:
     }
 
     return Settings(
-        supabase_url=supabase_url,
-        supabase_service_role_key=supabase_service_role_key,
+        supabase_auth_url=supabase_auth_url,
+        supabase_auth_service_role_key=supabase_auth_service_role_key,
+        supabase_db_url=supabase_db_url,
+        supabase_db_service_role_key=supabase_db_service_role_key,
         allowed_origins=allowed_origins,
         allowed_origin_regex=allowed_origin_regex,
         admin_emails=admin_emails,

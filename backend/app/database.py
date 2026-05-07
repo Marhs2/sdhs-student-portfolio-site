@@ -26,16 +26,16 @@ if "httpx_client" in signature(ClientOptions).parameters:
     client_options_kwargs["httpx_client"] = supabase_http_client
 
 supabase = create_client(
-    settings.supabase_url,
-    settings.supabase_service_role_key,
+    settings.supabase_db_url,
+    settings.supabase_db_service_role_key,
     options=ClientOptions(**client_options_kwargs),
 )
 
 
 def get_auth_user(access_token: str) -> dict:
-    url = f"{settings.supabase_url.rstrip('/')}/auth/v1/user"
+    url = f"{settings.supabase_auth_url.rstrip('/')}/auth/v1/user"
     headers = {
-        "apikey": settings.supabase_service_role_key,
+        "apikey": settings.supabase_auth_service_role_key,
         "Authorization": f"Bearer {access_token}",
     }
 

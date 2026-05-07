@@ -10,33 +10,38 @@ const isLoopbackHost = (hostname) =>
   hostname === "127.0.0.1" ||
   hostname === "::1";
 
-export const resolveApiBaseUrl = () => {
-  if (!rawApiBaseUrl) {
-    const currentHost =
-      typeof window !== "undefined" ? window.location.hostname : "";
+export const resolveConfiguredApiBaseUrl = (
+  configuredBaseUrl,
+  currentHost = typeof window !== "undefined" ? window.location.hostname : "",
+) => {
+  if (configuredBaseUrl === "__same_origin__") {
+    return "";
+  }
+
+  if (!configuredBaseUrl) {
     return currentHost && !isLoopbackHost(currentHost) ? productionApiBaseUrl : "";
   }
 
   try {
-    const url = new URL(rawApiBaseUrl);
-    const currentHost =
-      typeof window !== "undefined" ? window.location.hostname : "";
+    const url = new URL(configuredBaseUrl);
 
     if (url.hostname && isLoopbackHost(url.hostname) && !isLoopbackHost(currentHost)) {
       console.warn(
-        `Ignoring loopback API base URL in a non-local environment: ${rawApiBaseUrl}`,
+        `Ignoring loopback API base URL in a non-local environment: ${configuredBaseUrl}`,
       );
       return productionApiBaseUrl;
     }
   } catch {
-    return rawApiBaseUrl;
+    return configuredBaseUrl;
   }
 
-  if (!rawApiBaseUrl && typeof window !== "undefined" && !isLoopbackHost(window.location.hostname)) {
-    return productionApiBaseUrl;
-  }
+  return configuredBaseUrl;
+};
 
-  return rawApiBaseUrl;
+export const resolveApiBaseUrl = () => {
+  const currentHost =
+    typeof window !== "undefined" ? window.location.hostname : "";
+  return resolveConfiguredApiBaseUrl(rawApiBaseUrl, currentHost);
 };
 
 export const buildApiUrl = (path) => `${resolveApiBaseUrl()}${path}`;

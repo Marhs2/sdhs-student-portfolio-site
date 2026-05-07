@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { clearApiCache, fetchJson } from "./apiClient.js";
+import { clearApiCache, fetchJson, resolveConfiguredApiBaseUrl } from "./apiClient.js";
+
+test("resolveConfiguredApiBaseUrl can use same-origin API hosting", () => {
+  assert.equal(resolveConfiguredApiBaseUrl("__same_origin__", "portfolio.example.com"), "");
+});
 
 test("fetchJson aborts stalled requests with a timeout error", async () => {
   clearApiCache();

@@ -91,8 +91,12 @@ npm run backend:dev
 
 | Name | Required | Default | Description |
 | --- | --- | --- | --- |
-| `SUPABASE_URL` | Yes | - | Supabase project URL |
-| `SUPABASE_SERVICE_ROLE_KEY` | Yes | - | 서버 전용 Supabase service role key. 클라이언트에 노출 금지 |
+| `SUPABASE_AUTH_URL` | Recommended | `SUPABASE_URL` | OAuth/Auth 토큰 검증용 Supabase project URL |
+| `SUPABASE_AUTH_SERVICE_ROLE_KEY` | Recommended | `SUPABASE_SERVICE_ROLE_KEY` | Auth 토큰 검증용 service role key. 클라이언트에 노출 금지 |
+| `SUPABASE_DB_URL` | Recommended | `SUPABASE_URL` | 프로필/포트폴리오/스토리지 접근용 Supabase project URL. 로컬 Supabase는 `http://127.0.0.1:54321` |
+| `SUPABASE_DB_SERVICE_ROLE_KEY` | Recommended | `SUPABASE_SERVICE_ROLE_KEY` | DB/Storage 접근용 service role key. 클라이언트에 노출 금지 |
+| `SUPABASE_URL` | Legacy | - | Auth와 DB가 같은 프로젝트일 때 쓰는 기존 공통 Supabase project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | Legacy | - | Auth와 DB가 같은 프로젝트일 때 쓰는 기존 공통 service role key |
 | `PORTFOLIO_ALLOWED_ORIGINS` | Recommended | `http://127.0.0.1:5173,http://localhost:5173` | CORS 허용 origin 목록 |
 | `PORTFOLIO_ALLOWED_ORIGIN_REGEX` | No | empty | 추가 허용 origin 정규식. 공유 `vercel.app` 전체 wildcard는 차단됨 |
 | `PORTFOLIO_ADMIN_EMAILS` | Recommended | empty | 서버 관리자 이메일 목록. 쉼표로 구분 |
@@ -132,8 +136,10 @@ VITE_API_BASE_URL=http://127.0.0.1:8000
 
 ```text
 # backend/.env
-SUPABASE_URL=https://lbayyiylxjvqhcqejvkr.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=<rotated test service role key>
+SUPABASE_AUTH_URL=https://lbayyiylxjvqhcqejvkr.supabase.co
+SUPABASE_AUTH_SERVICE_ROLE_KEY=<rotated auth service role key>
+SUPABASE_DB_URL=http://127.0.0.1:54321
+SUPABASE_DB_SERVICE_ROLE_KEY=<local supabase service role key>
 PORTFOLIO_ALLOWED_ORIGINS=http://127.0.0.1:5173,http://localhost:5173
 PORTFOLIO_ALLOWED_ORIGIN_REGEX=
 PORTFOLIO_ADMIN_EMAILS=<local test admin email>
@@ -169,6 +175,55 @@ npm run frontend:build
 
 현재 루트 `vercel.json`은 `npm --prefix portfolio run build`로 프론트엔드를 빌드하고, SPA 라우트를 `index.html`로 rewrite합니다.
 
+### Self-hosted Docker Compose
+
+자체 VPS/호스팅 서버에서 프론트엔드와 백엔드를 함께 운영하려면 `deploy/docker-compose.self-hosted.yml`을 사용합니다.
+Caddy가 80/443 포트를 열고 HTTPS 인증서를 자동 발급하며, `/api/*`와 `/health`는 FastAPI 백엔드로 프록시하고 나머지는 정적 프론트엔드를 제공합니다.
+
+서버 준비:
+
+```bash
+git clone <repo-url> sdhs-student-portfolio-site
+cd sdhs-student-portfolio-site
+cp deploy/.env.example deploy/.env
+```
+
+`deploy/.env`에서 최소한 아래 값을 서버 도메인과 Supabase 키로 채웁니다.
+
+```env
+APP_DOMAIN=portfolio.example.com
+VITE_SUPABASE_URL=https://your-auth-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your_auth_project_anon_key
+VITE_API_BASE_URL=__same_origin__
+SUPABASE_AUTH_URL=https://your-auth-project.supabase.co
+SUPABASE_AUTH_SERVICE_ROLE_KEY=your_auth_service_role_key
+SUPABASE_DB_URL=https://your-db-project.supabase.co
+SUPABASE_DB_SERVICE_ROLE_KEY=your_db_service_role_key
+PORTFOLIO_ALLOWED_ORIGINS=https://portfolio.example.com
+```
+
+실행:
+
+```bash
+docker compose -f deploy/docker-compose.self-hosted.yml --env-file deploy/.env up -d --build
+```
+
+GitHub Actions CI/CD:
+
+- `.github/workflows/ci.yml`: PR/push마다 프론트 테스트, 프론트 빌드, 백엔드 테스트 실행
+- `.github/workflows/deploy-self-hosted.yml`: `main` 브랜치 CI 성공 후 서버에 SSH 접속해 `git reset --hard origin/main` 후 Docker Compose 재배포
+
+GitHub repository secrets:
+
+| Secret | Description |
+| --- | --- |
+| `SSH_HOST` | 서버 IP 또는 도메인 |
+| `SSH_USER` | 배포에 사용할 서버 사용자 |
+| `SSH_PRIVATE_KEY` | 해당 사용자의 private SSH key |
+| `APP_DIR` | 서버 안의 repo 절대 경로. 예: `/home/deploy/sdhs-student-portfolio-site` |
+
+서버에는 Docker Compose v2와 Git이 설치되어 있어야 하고, `APP_DOMAIN`의 DNS A/AAAA 레코드는 서버를 가리켜야 합니다. Caddy가 80/443 포트를 사용하므로 서버 방화벽에서도 두 포트를 열어야 합니다.
+
 ### Render backend
 
 - Root Directory: `backend`
@@ -178,8 +233,10 @@ npm run frontend:build
 - Backend keepalive: `PORTFOLIO_KEEPALIVE_URL` is set to the deployed `/health` URL in `render.yaml`, so the running backend periodically calls its own health endpoint.
 - Keepalive fallback: `.github/workflows/render-keepalive.yml` also pings `/health` every 10 minutes as an external mitigation.
 - Required env vars:
-  - `SUPABASE_URL`
-  - `SUPABASE_SERVICE_ROLE_KEY`
+  - `SUPABASE_AUTH_URL`
+  - `SUPABASE_AUTH_SERVICE_ROLE_KEY`
+  - `SUPABASE_DB_URL`
+  - `SUPABASE_DB_SERVICE_ROLE_KEY`
   - `PORTFOLIO_ALLOWED_ORIGINS`
   - `PORTFOLIO_ADMIN_EMAILS`
   - `PORTFOLIO_MAX_UPLOAD_BYTES`
