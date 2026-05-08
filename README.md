@@ -101,7 +101,7 @@ npm run backend:dev
 | `PORTFOLIO_ALLOWED_ORIGIN_REGEX` | No | empty | 추가 허용 origin 정규식. 공유 `vercel.app` 전체 wildcard는 차단됨 |
 | `PORTFOLIO_ADMIN_EMAILS` | Recommended | empty | 서버 관리자 이메일 목록. 쉼표로 구분 |
 | `PORTFOLIO_MAX_UPLOAD_BYTES` | No | `1048576` | 업로드 이미지 최대 크기 |
-| `PORTFOLIO_UPLOAD_DIR` | No | `backend/uploads` | 로컬 이미지 업로드 저장 디렉터리. Docker 배포는 `/app/uploads` volume 사용 |
+| `PORTFOLIO_UPLOAD_DIR` | No | `backend/uploads` | 로컬 이미지 업로드 저장 디렉터리 |
 | `PORTFOLIO_PUBLIC_CACHE_TTL_SECONDS` | No | `30` | 공개 목록 서버 캐시 TTL |
 | `PORTFOLIO_PUBLIC_CACHE_STALE_SECONDS` | No | `300` | Supabase 장애 시 stale 공개 응답 유지 시간 |
 | `GITHUB_TOKEN` | Optional | empty | GitHub 커밋 수 조회용 서버 토큰 |
@@ -176,57 +176,10 @@ npm run frontend:build
 
 현재 루트 `vercel.json`은 `npm --prefix portfolio run build`로 프론트엔드를 빌드하고, SPA 라우트를 `index.html`로 rewrite합니다.
 
-### Self-hosted Docker Compose
-
-자체 VPS/호스팅 서버에서 프론트엔드와 백엔드를 함께 운영하려면 `deploy/docker-compose.self-hosted.yml`을 사용합니다.
-Caddy가 80/443 포트를 열고 HTTPS 인증서를 자동 발급하며, `/api/*`와 `/health`는 FastAPI 백엔드로 프록시하고 나머지는 정적 프론트엔드를 제공합니다.
-
-서버 준비:
-
-```bash
-git clone <repo-url> sdhs-student-portfolio-site
-cd sdhs-student-portfolio-site
-cp deploy/.env.example deploy/.env
-```
-
-`deploy/.env`에서 최소한 아래 값을 서버 도메인과 Supabase 키로 채웁니다.
-
-```env
-APP_DOMAIN=portfolio.example.com
-VITE_SUPABASE_URL=https://your-auth-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your_auth_project_anon_key
-VITE_API_BASE_URL=__same_origin__
-SUPABASE_AUTH_URL=https://your-auth-project.supabase.co
-SUPABASE_AUTH_SERVICE_ROLE_KEY=your_auth_service_role_key
-SUPABASE_DB_URL=https://your-db-project.supabase.co
-SUPABASE_DB_SERVICE_ROLE_KEY=your_db_service_role_key
-PORTFOLIO_ALLOWED_ORIGINS=https://portfolio.example.com
-PORTFOLIO_UPLOAD_DIR=/app/uploads
-```
-
-이미지 URL은 하이브리드로 동작합니다. DB에 기존 Supabase Storage 절대 URL이 들어 있으면 그대로 Supabase에서 이미지를 가져오고, 새로 업로드한 이미지는 `/uploads/...` 상대 URL로 저장되어 자체 서버의 Docker volume에서 제공됩니다.
-
-실행:
-
-```bash
-docker compose -f deploy/docker-compose.self-hosted.yml --env-file deploy/.env up -d --build
-```
-
 GitHub Actions CI/CD:
 
 - `.github/workflows/ci.yml`: PR/push마다 프론트 테스트, 프론트 빌드, 백엔드 테스트 실행
-- `.github/workflows/deploy-self-hosted.yml`: `main` 브랜치 CI 성공 후 서버에 SSH 접속해 `git reset --hard origin/main` 후 Docker Compose 재배포
-
-GitHub repository secrets:
-
-| Secret | Description |
-| --- | --- |
-| `SSH_HOST` | 서버 IP 또는 도메인 |
-| `SSH_USER` | 배포에 사용할 서버 사용자 |
-| `SSH_PRIVATE_KEY` | 해당 사용자의 private SSH key |
-| `APP_DIR` | 서버 안의 repo 절대 경로. 예: `/home/deploy/sdhs-student-portfolio-site` |
-
-서버에는 Docker Compose v2와 Git이 설치되어 있어야 하고, `APP_DOMAIN`의 DNS A/AAAA 레코드는 서버를 가리켜야 합니다. Caddy가 80/443 포트를 사용하므로 서버 방화벽에서도 두 포트를 열어야 합니다.
+- `.github/workflows/render-keepalive.yml`: Render backend `/health`를 주기적으로 호출하는 보조 keepalive 워크플로
 
 ### Render backend
 
