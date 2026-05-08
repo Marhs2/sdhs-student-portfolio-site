@@ -5,6 +5,7 @@
 
 # Agent/runtime state and logs
 .omx/
+.codex-security-scans/
 
 # Development documentation
 docs/
