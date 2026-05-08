@@ -8,6 +8,7 @@ os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "dummy")
 
 from backend.app.routers.uploads import (
     _detect_supported_image_content_type,
+    _profile_image_file_name,
     _profile_image_file_path,
     _profile_image_public_url,
 )
@@ -33,16 +34,28 @@ class UploadImageDetectionTests(unittest.TestCase):
     def test_rejects_unknown_signature(self) -> None:
         self.assertEqual(_detect_supported_image_content_type(b"not an image"), "")
 
-    def test_profile_image_file_path_sanitizes_user_id(self) -> None:
+    def test_profile_image_file_name_uses_safe_server_generated_stem(self) -> None:
         self.assertEqual(
-            _profile_image_file_path(Path("/uploads"), "../user@example.com", ".webp"),
-            Path("/uploads/profiles/user_example_com.webp"),
+            _profile_image_file_name(".webp", stem="abc123"),
+            "abc123.webp",
+        )
+
+    def test_profile_image_file_name_rejects_unsafe_input(self) -> None:
+        with self.assertRaises(ValueError):
+            _profile_image_file_name("../evil", stem="abc123")
+        with self.assertRaises(ValueError):
+            _profile_image_file_name(".webp", stem="../user")
+
+    def test_profile_image_file_path_stays_under_upload_root(self) -> None:
+        self.assertEqual(
+            _profile_image_file_path(Path("/uploads"), "abc123.webp"),
+            Path("/uploads/profiles/abc123.webp").resolve(),
         )
 
     def test_profile_image_public_url_uses_relative_upload_path(self) -> None:
         self.assertEqual(
-            _profile_image_public_url("student-1", ".webp", version_ms=123),
-            "/uploads/profiles/student-1.webp?v=123",
+            _profile_image_public_url("abc123.webp", version_ms=123),
+            "/uploads/profiles/abc123.webp?v=123",
         )
 
 

@@ -68,6 +68,14 @@ def _handle_github_error(error: Exception) -> None:
     raise error
 
 
+def _public_github_lookup_message(error: Exception) -> str:
+    if isinstance(error, ValueError):
+        return str(error)
+    if isinstance(error, GithubUserNotFoundError):
+        return str(error)
+    return "GitHub 활동 수를 조회하지 못했습니다."
+
+
 def _lookup_github_commit_batch(usernames: list[str]) -> tuple[list[dict], list[dict]]:
     results = []
     errors = []
@@ -94,7 +102,7 @@ def _lookup_github_commit_batch(usernames: list[str]) -> tuple[list[dict], list[
                         {
                             "username": username,
                             "reason": type(item_error).__name__,
-                            "message": str(item_error),
+                            "message": _public_github_lookup_message(item_error),
                         },
                     )
     finally:
@@ -146,7 +154,7 @@ def get_github_commit_status(
                 "configured": True,
                 "checkedUsername": username,
                 "totalCommits": None,
-                "message": str(error),
+                "message": "올바른 GitHub 사용자명이 아닙니다.",
             }
         if isinstance(error, GithubUserNotFoundError):
             return {
@@ -154,7 +162,7 @@ def get_github_commit_status(
                 "configured": True,
                 "checkedUsername": username,
                 "totalCommits": None,
-                "message": str(error),
+                "message": "GitHub 사용자를 찾을 수 없습니다.",
             }
         if isinstance(error, (GithubCommitLookupError, httpx.HTTPError)):
             return {
@@ -162,7 +170,7 @@ def get_github_commit_status(
                 "configured": True,
                 "checkedUsername": username,
                 "totalCommits": None,
-                "message": f"GitHub API 조회에 실패했습니다: {error}",
+                "message": "GitHub API 조회에 실패했습니다. 잠시 후 다시 시도해 주세요.",
             }
         raise
 

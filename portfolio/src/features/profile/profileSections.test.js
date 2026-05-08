@@ -52,6 +52,15 @@ test("buildProfileSections falls back safely for empty projects and unsafe text"
   assert.deepEqual(sections.displayProjects, []);
 });
 
+test("buildProfileSections removes tag delimiters from summary text", () => {
+  const sections = buildProfileSections({
+    description: "<scrip<script>is removed</script>t>alert(123)</script>",
+  });
+
+  assert.equal(sections.cleanDescription.includes("<script"), false);
+  assert.equal(sections.cleanDescription.includes(">"), false);
+});
+
 test("buildProfileSections only exposes real GitHub profile links as GitHub", () => {
   assert.equal(
     buildProfileSections({ github: "https://github.com/student" }).hasValidGithub,

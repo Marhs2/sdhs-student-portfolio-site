@@ -1,6 +1,25 @@
 const toText = (value) => (value == null ? "" : String(value).trim());
 
-const stripHtml = (value) => toText(value).replace(/<[^>]*>/g, "").trim();
+const stripHtml = (value) => {
+  let isInsideTag = false;
+  let text = "";
+
+  for (const character of toText(value)) {
+    if (character === "<") {
+      isInsideTag = true;
+      continue;
+    }
+    if (character === ">") {
+      isInsideTag = false;
+      continue;
+    }
+    if (!isInsideTag) {
+      text += character;
+    }
+  }
+
+  return text.trim();
+};
 
 const firstText = (...values) => values.map(toText).find(Boolean) || "";
 

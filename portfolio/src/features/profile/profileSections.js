@@ -1,6 +1,25 @@
 const toText = (value) => String(value ?? "").trim();
 
-const stripHtml = (value) => toText(value).replace(/<[^>]*>/g, "").trim();
+const stripHtml = (value) => {
+  let isInsideTag = false;
+  let text = "";
+
+  for (const character of toText(value)) {
+    if (character === "<") {
+      isInsideTag = true;
+      continue;
+    }
+    if (character === ">") {
+      isInsideTag = false;
+      continue;
+    }
+    if (!isInsideTag) {
+      text += character;
+    }
+  }
+
+  return text.trim();
+};
 
 const isGithubUrl = (value) => /^https:\/\/(www\.)?github\.com\/.+/i.test(toText(value));
 

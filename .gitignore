@@ -6,6 +6,9 @@
 # Agent/runtime state and logs
 .omx/
 
+# Development documentation
+docs/
+
 # Python
 __pycache__/
 *.py[cod]

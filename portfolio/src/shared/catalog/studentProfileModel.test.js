@@ -89,3 +89,12 @@ test("buildStudentCardModel falls back to stable defaults", () => {
     reviewStatus: "draft",
   });
 });
+
+test("buildStudentCardModel removes tag delimiters from summary text", () => {
+  const card = buildStudentCardModel({
+    description: "<scrip<script>is removed</script>t>alert(123)</script>",
+  });
+
+  assert.equal(card.summary.includes("<script"), false);
+  assert.equal(card.summary.includes(">"), false);
+});

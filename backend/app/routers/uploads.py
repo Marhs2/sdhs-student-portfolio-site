@@ -1,6 +1,7 @@
 import importlib.util
-import re
+import os
 import time
+import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
@@ -20,17 +21,33 @@ IMAGE_EXTENSIONS = {
 }
 
 
-def _safe_upload_id(value: str) -> str:
-    normalized = re.sub(r"[^A-Za-z0-9-]+", "_", value or "").strip("_-")
-    return normalized or "user"
+def _safe_upload_extension(value: str) -> str:
+    if value not in IMAGE_EXTENSIONS.values():
+        raise ValueError("Unsupported upload extension.")
+    return value
 
 
-def _profile_image_file_path(upload_dir: Path, user_id: str, extension: str) -> Path:
-    return upload_dir / "profiles" / f"{_safe_upload_id(user_id)}{extension}"
+def _profile_image_file_name(extension: str, stem: str | None = None) -> str:
+    safe_stem = stem or uuid.uuid4().hex
+    if not safe_stem.isalnum():
+        raise ValueError("Unsafe upload file name.")
+    return f"{safe_stem}{_safe_upload_extension(extension)}"
 
 
-def _profile_image_public_url(user_id: str, extension: str, *, version_ms: int) -> str:
-    return f"/uploads/profiles/{_safe_upload_id(user_id)}{extension}?v={version_ms}"
+def _profile_image_file_path(upload_dir: Path, file_name: str) -> Path:
+    return (upload_dir / "profiles" / file_name).resolve()
+
+
+def _profile_image_profiles_dir(upload_dir: Path) -> Path:
+    return (upload_dir / "profiles").resolve()
+
+
+def _is_path_under_root(root: Path, path: Path) -> bool:
+    return os.path.commonpath([str(root), str(path)]) == str(root)
+
+
+def _profile_image_public_url(file_name: str, *, version_ms: int) -> str:
+    return f"/uploads/profiles/{file_name}?v={version_ms}"
 
 
 def _detect_supported_image_content_type(contents: bytes) -> str:
@@ -113,15 +130,28 @@ if has_multipart:
             )
 
         extension = IMAGE_EXTENSIONS.get(detected_type, "")
-        file_path = _profile_image_file_path(settings.upload_dir, user["id"], extension)
+        file_name = _profile_image_file_name(extension)
+        profiles_dir = _profile_image_profiles_dir(settings.upload_dir)
+        file_path = _profile_image_file_path(settings.upload_dir, file_name)
+        if not _is_path_under_root(profiles_dir, file_path):
+            log_security_event(
+                "upload.profile_image_rejected",
+                outcome="blocked",
+                severity="warning",
+                actor_email=user.get("email"),
+                reason="unsafe_upload_path",
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="업로드 경로가 올바르지 않습니다.",
+            )
         public_url = _profile_image_public_url(
-            user["id"],
-            extension,
+            file_name,
             version_ms=int(time.time() * 1000),
         )
 
         try:
-            file_path.parent.mkdir(parents=True, exist_ok=True)
+            profiles_dir.mkdir(parents=True, exist_ok=True)
             file_path.write_bytes(contents)
             log_security_event(
                 "upload.profile_image_stored",

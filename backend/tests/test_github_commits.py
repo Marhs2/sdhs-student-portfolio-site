@@ -188,6 +188,73 @@ def test_github_commit_status_endpoint_reports_success(monkeypatch) -> None:
     }
 
 
+def test_github_commit_status_hides_lookup_error_detail(monkeypatch) -> None:
+    app = create_app()
+    app.dependency_overrides[require_server_admin] = lambda: {
+        "email": "owner@sdh.hs.kr",
+        "isAdmin": True,
+        "isConfigAdmin": True,
+    }
+    monkeypatch.setattr(
+        "backend.app.routers.github_commits.get_total_commits",
+        lambda username: (_ for _ in ()).throw(
+            github_commits.GithubCommitLookupError(
+                "GitHub API HTTP 502: internal upstream details",
+            ),
+        ),
+    )
+
+    response = TestClient(app).get("/api/github/commit-status?username=Marhs2")
+
+    assert response.status_code == 200
+    assert response.json()["message"] == "GitHub API 조회에 실패했습니다. 잠시 후 다시 시도해 주세요."
+    assert "internal upstream details" not in response.text
+
+
+def test_github_commit_status_hides_missing_user_error_detail(monkeypatch) -> None:
+    app = create_app()
+    app.dependency_overrides[require_server_admin] = lambda: {
+        "email": "owner@sdh.hs.kr",
+        "isAdmin": True,
+        "isConfigAdmin": True,
+    }
+    monkeypatch.setattr(
+        "backend.app.routers.github_commits.get_total_commits",
+        lambda username: (_ for _ in ()).throw(
+            github_commits.GithubUserNotFoundError(
+                "GitHub 사용자를 찾을 수 없습니다: private-detail",
+            ),
+        ),
+    )
+
+    response = TestClient(app).get("/api/github/commit-status?username=private-detail")
+
+    assert response.status_code == 200
+    assert response.json()["message"] == "GitHub 사용자를 찾을 수 없습니다."
+    assert "GitHub 사용자를 찾을 수 없습니다: private-detail" not in response.text
+
+
+def test_github_commit_status_hides_validation_error_detail(monkeypatch) -> None:
+    app = create_app()
+    app.dependency_overrides[require_server_admin] = lambda: {
+        "email": "owner@sdh.hs.kr",
+        "isAdmin": True,
+        "isConfigAdmin": True,
+    }
+    monkeypatch.setattr(
+        "backend.app.routers.github_commits.get_total_commits",
+        lambda username: (_ for _ in ()).throw(
+            ValueError("bad username with internal parsing detail"),
+        ),
+    )
+
+    response = TestClient(app).get("/api/github/commit-status?username=bad/user")
+
+    assert response.status_code == 200
+    assert response.json()["message"] == "올바른 GitHub 사용자명이 아닙니다."
+    assert "internal parsing detail" not in response.text
+
+
 def test_github_commit_batch_returns_partial_results(monkeypatch) -> None:
     app = create_app()
     github_commit_router._github_lookup_events_by_host.clear()
@@ -236,7 +303,7 @@ def test_github_commit_batch_keeps_lookup_failures_partial(monkeypatch) -> None:
     assert response.json()["errors"][0] == {
         "username": "github-down",
         "reason": "GithubCommitLookupError",
-        "message": "upstream failed",
+        "message": "GitHub 활동 수를 조회하지 못했습니다.",
     }
 
 
