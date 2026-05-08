@@ -210,6 +210,9 @@ watch(
           <ul class="profile-header__evidence" aria-label="프로필 증빙">
             <li v-for="item in profileEvidence" :key="item">{{ item }}</li>
           </ul>
+          <ul v-if="profile.badges?.length" class="profile-header__badges" aria-label="관리자 인증 배지">
+            <li v-for="badge in profile.badges" :key="badge">{{ badge }}</li>
+          </ul>
         </div>
       </div>
 
@@ -431,6 +434,24 @@ watch(
   color: var(--success-text);
   font-size: 0.78rem;
   font-weight: 750;
+}
+
+.profile-header__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0;
+  margin: 2px 0 0;
+  list-style: none;
+}
+
+.profile-header__badges li {
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--brand-soft);
+  color: var(--brand-main);
+  font-size: 0.8rem;
+  font-weight: 850;
 }
 
 .profile-header__actions {

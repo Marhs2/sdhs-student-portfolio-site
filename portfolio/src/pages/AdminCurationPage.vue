@@ -182,6 +182,19 @@ const githubStatusLabel = computed(() => {
 });
 const rowDirty = (row) => isAdminDraftDirty(row, drafts[row.id] || createAdminDraft(row));
 
+const formatBadgeDraft = (profileId) => (drafts[profileId]?.badges || []).join("\n");
+
+const updateBadgeDraft = (profileId, value) => {
+  if (!drafts[profileId]) {
+    return;
+  }
+  drafts[profileId].badges = String(value || "")
+    .split(/\r?\n|,/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 12);
+};
+
 const clearSelection = () => {
   Object.keys(selectedIds).forEach((id) => {
     delete selectedIds[id];
@@ -876,6 +889,13 @@ onUnmounted(() => {
               </div>
 
               <div class="admin-page__chips">
+                <span
+                  v-for="badge in row.badges"
+                  :key="`badge-${badge}`"
+                  class="admin-page__badge-chip"
+                >
+                  {{ badge }}
+                </span>
                 <span v-for="item in row.tags" :key="item">{{ item }}</span>
                 <span
                   v-for="issue in row.issues"
@@ -953,6 +973,18 @@ onUnmounted(() => {
                   <input v-model="drafts[row.id].isVisible" :name="`admin-visible-${row.id}`" type="checkbox" />
                   <span class="admin-page__toggle-track" aria-hidden="true"></span>
                   <span>공개</span>
+                </label>
+
+                <label class="admin-page__control-field admin-page__control-field--wide">
+                  <span>관리자 배지</span>
+                  <textarea
+                    :name="`admin-badges-${row.id}`"
+                    :value="formatBadgeDraft(row.id)"
+                    rows="3"
+                    maxlength="980"
+                    placeholder="정보처리기능사&#10;교내 해커톤 수상"
+                    @input="updateBadgeDraft(row.id, $event.target.value)"
+                  ></textarea>
                 </label>
 
                 <label v-if="props.serverMode" class="admin-page__toggle">
@@ -1827,6 +1859,12 @@ onUnmounted(() => {
   font-weight: 700;
 }
 
+.admin-page__chips .admin-page__badge-chip {
+  background: var(--success-soft);
+  color: var(--success-text);
+  font-weight: 800;
+}
+
 .admin-page__controls {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 104px;
@@ -1839,6 +1877,11 @@ onUnmounted(() => {
 
 .admin-page__control-field--wide {
   grid-column: 1 / -1;
+}
+
+.admin-page__control-field textarea {
+  min-height: 84px;
+  resize: vertical;
 }
 
 .admin-page__toggle {

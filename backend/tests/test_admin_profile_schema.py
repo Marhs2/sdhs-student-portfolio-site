@@ -20,6 +20,7 @@ class AdminProfileSchemaTests(unittest.TestCase):
             featuredRank=1,
             reviewStatus="approved",
             isVisible=True,
+            badges=["정보처리기능사", "교내 해커톤 수상"],
         )
 
         self.assertEqual(
@@ -28,6 +29,7 @@ class AdminProfileSchemaTests(unittest.TestCase):
                 "featuredRank": 1,
                 "reviewStatus": "approved",
                 "isVisible": True,
+                "badges": ["정보처리기능사", "교내 해커톤 수상"],
             },
         )
 
@@ -77,6 +79,14 @@ class AdminProfileSchemaTests(unittest.TestCase):
     def test_admin_profile_update_rejects_zero_featured_rank(self) -> None:
         with self.assertRaises(ValidationError):
             AdminProfileUpdatePayload(featuredRank=0)
+
+    def test_admin_profile_update_rejects_too_many_badges(self) -> None:
+        with self.assertRaises(ValidationError):
+            AdminProfileUpdatePayload(badges=[f"badge-{index}" for index in range(13)])
+
+    def test_admin_profile_update_rejects_too_long_badge(self) -> None:
+        with self.assertRaises(ValidationError):
+            AdminProfileUpdatePayload(badges=["x" * 81])
 
 
 if __name__ == "__main__":

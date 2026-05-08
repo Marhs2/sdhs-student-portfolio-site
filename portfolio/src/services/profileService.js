@@ -25,6 +25,7 @@ export const normalizeProfile = (profile = {}) => ({
   department: profile.department || "",
   track: profile.track || "",
   tags: normalizeTags(profile.tags),
+  badges: normalizeTags(profile.badges),
   featuredRank: Number.isFinite(Number(profile.featuredRank))
     ? Number(profile.featuredRank)
     : 9999,

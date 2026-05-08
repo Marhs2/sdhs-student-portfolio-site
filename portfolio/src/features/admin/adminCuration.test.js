@@ -26,6 +26,7 @@ const profiles = [
     github: "https://github.com/kim",
     imageUrl: "https://cdn.example.com/kim.jpg",
     tags: ["Vue"],
+    badges: ["정보처리기능사"],
     reviewStatus: "approved",
     isVisible: true,
     featuredRank: 1,
@@ -67,6 +68,20 @@ test("buildAdminRows searches taxonomy and attaches completeness", () => {
   assert.equal(rows[0].id, 1);
   assert.equal(rows[0].completeness.percent, 83);
   assert.deepEqual(rows[0].issues, ["자기소개 누락"]);
+});
+
+test("admin curation tracks administrator-issued badges", () => {
+  const drafts = {};
+  syncAdminDrafts(drafts, profiles);
+
+  assert.deepEqual(drafts[1].badges, ["정보처리기능사"]);
+  assert.equal(isAdminDraftDirty(profiles[0], drafts[1]), false);
+
+  drafts[1].badges = ["정보처리기능사", "교내 해커톤 수상"];
+  assert.equal(isAdminDraftDirty(profiles[0], drafts[1]), true);
+
+  const rows = buildAdminRows(profiles, { search: "정보처리기능사" });
+  assert.deepEqual(rows.map((row) => row.id), [1]);
 });
 
 test("buildAdminRows searches operational fields beyond visible copy", () => {

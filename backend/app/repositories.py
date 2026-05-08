@@ -14,6 +14,7 @@ from .normalization import (
     clean_github_url,
     clean_http_url,
     clean_youtube_url,
+    _normalize_badge_list,
     _normalize_tag_list,
     normalize_job,
     normalize_portfolio_item_record,
@@ -24,6 +25,10 @@ from .security_logging import log_security_event
 
 logger = logging.getLogger("portfolio-backend")
 PROFILE_COLUMNS = (
+    "id,name,des,job,school,department,track,tags,featured_rank,review_status,"
+    "is_visible,GITHUB,email,img,created_at,isAdmin,badges"
+)
+PROFILE_COLUMNS_WITHOUT_BADGES = (
     "id,name,des,job,school,department,track,tags,featured_rank,review_status,"
     "is_visible,GITHUB,email,img,created_at,isAdmin"
 )
@@ -57,6 +62,7 @@ def _clone_profile(profile: dict[str, Any] | None) -> dict[str, Any] | None:
         return None
     cloned = dict(profile)
     cloned["tags"] = list(profile.get("tags") or [])
+    cloned["badges"] = list(profile.get("badges") or [])
     return cloned
 
 
@@ -126,6 +132,28 @@ def _execute_with_missing_column_fallback(
         return _execute_query(legacy_query, operation=legacy_operation)
 
 
+def _execute_profile_select_with_fallback(
+    primary_query: Any,
+    no_badges_query: Any,
+    legacy_query: Any,
+    *,
+    operation: str,
+    no_badges_operation: str,
+    legacy_operation: str,
+) -> Any:
+    try:
+        return _execute_query(primary_query, operation=operation)
+    except APIError as exc:
+        if not _is_missing_column_error(exc):
+            raise
+    try:
+        return _execute_query(no_badges_query, operation=no_badges_operation)
+    except APIError as exc:
+        if not _is_missing_column_error(exc):
+            raise
+        return _execute_query(legacy_query, operation=legacy_operation)
+
+
 def _apply_query_window(query: Any, *, limit: int | None = None, offset: int = 0) -> Any:
     if limit is None:
         return query
@@ -188,9 +216,21 @@ def _select_profiles(
     limit: int | None = None,
     offset: int = 0,
 ) -> list[dict[str, Any]]:
-    response = _execute_with_missing_column_fallback(
+    response = _execute_profile_select_with_fallback(
         _build_profile_select_query(
             PROFILE_COLUMNS,
+            school=school,
+            department=department,
+            track=track,
+            job=job,
+            sort=sort,
+            extended_schema=True,
+            include_hidden=include_hidden,
+            limit=limit,
+            offset=offset,
+        ),
+        _build_profile_select_query(
+            PROFILE_COLUMNS_WITHOUT_BADGES,
             school=school,
             department=department,
             track=track,
@@ -210,6 +250,7 @@ def _select_profiles(
             offset=offset,
         ),
         operation="profiles.select",
+        no_badges_operation="profiles.select_without_badges",
         legacy_operation="profiles.select_legacy",
     )
 
@@ -267,6 +308,8 @@ def _profile_update_payload(payload: dict[str, Any], *, extended_schema: bool = 
             raw_update["track"] = payload["track"]
         if "tags" in payload:
             raw_update["tags"] = _normalize_tag_list(payload["tags"])
+        if "badges" in payload:
+            raw_update["badges"] = _normalize_badge_list(payload["badges"])
         if "featuredRank" in payload:
             raw_update["featured_rank"] = payload["featuredRank"]
         if "reviewStatus" in payload:
@@ -477,9 +520,13 @@ def list_admin_profiles(
 
 def get_profile_by_id(profile_id: int, *, include_private: bool = False) -> dict[str, Any] | None:
     def select() -> dict[str, Any] | None:
-        response = _execute_with_missing_column_fallback(
+        response = _execute_profile_select_with_fallback(
             supabase.table("userProfile")
             .select(PROFILE_COLUMNS)
+            .eq("id", profile_id)
+            .limit(1),
+            supabase.table("userProfile")
+            .select(PROFILE_COLUMNS_WITHOUT_BADGES)
             .eq("id", profile_id)
             .limit(1),
             supabase.table("userProfile")
@@ -487,6 +534,7 @@ def get_profile_by_id(profile_id: int, *, include_private: bool = False) -> dict
             .eq("id", profile_id)
             .limit(1),
             operation="profile.select_by_id",
+            no_badges_operation="profile.select_by_id_without_badges",
             legacy_operation="profile.select_by_id_legacy",
         )
         row = response.data[0] if response.data else None
@@ -533,9 +581,13 @@ def get_profile_by_email(email: str, *, include_private: bool = True) -> dict[st
     normalized_email = email.strip().lower()
 
     def select() -> dict[str, Any] | None:
-        response = _execute_with_missing_column_fallback(
+        response = _execute_profile_select_with_fallback(
             supabase.table("userProfile")
             .select(PROFILE_COLUMNS)
+            .eq("email", normalized_email)
+            .limit(1),
+            supabase.table("userProfile")
+            .select(PROFILE_COLUMNS_WITHOUT_BADGES)
             .eq("email", normalized_email)
             .limit(1),
             supabase.table("userProfile")
@@ -543,6 +595,7 @@ def get_profile_by_email(email: str, *, include_private: bool = True) -> dict[st
             .eq("email", normalized_email)
             .limit(1),
             operation="profile.select_by_email",
+            no_badges_operation="profile.select_by_email_without_badges",
             legacy_operation="profile.select_by_email_legacy",
         )
         row = response.data[0] if response.data else None
@@ -579,15 +632,31 @@ def update_profile(profile_id: int, payload: dict[str, Any]) -> dict[str, Any]:
     except APIError as exc:
         if not _is_missing_column_error(exc):
             raise
-        clean_update = _profile_update_payload(payload, extended_schema=False)
+        clean_update = _profile_update_payload(
+            {key: value for key, value in payload.items() if key != "badges"},
+            extended_schema=True,
+        )
         if not clean_update:
             return get_profile_by_id(profile_id, include_private=True) or {}
-        response = _execute_query(
-            supabase.table("userProfile")
-            .update(clean_update)
-            .eq("id", profile_id),
-            operation="profile.update_legacy",
-        )
+        try:
+            response = _execute_query(
+                supabase.table("userProfile")
+                .update(clean_update)
+                .eq("id", profile_id),
+                operation="profile.update_without_badges",
+            )
+        except APIError as fallback_exc:
+            if not _is_missing_column_error(fallback_exc):
+                raise
+            clean_update = _profile_update_payload(payload, extended_schema=False)
+            if not clean_update:
+                return get_profile_by_id(profile_id, include_private=True) or {}
+            response = _execute_query(
+                supabase.table("userProfile")
+                .update(clean_update)
+                .eq("id", profile_id),
+                operation="profile.update_legacy",
+            )
     row = response.data[0] if response.data else None
     clear_public_cache()
     return normalize_profile_record(row, include_private=True) or {}

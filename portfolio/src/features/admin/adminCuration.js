@@ -31,6 +31,7 @@ export const createAdminDraft = (profile = {}) => ({
   school: profile.school || "",
   department: profile.department || "",
   track: profile.track || "",
+  badges: Array.isArray(profile.badges) ? [...profile.badges] : [],
 });
 
 export const syncAdminDrafts = (drafts, profiles = []) => {
@@ -57,7 +58,8 @@ export const isAdminDraftDirty = (profile = {}, draft = {}) => {
     baseline.featuredRank !== Number(draft.featuredRank || 9999) ||
     baseline.school !== toText(draft.school) ||
     baseline.department !== toText(draft.department) ||
-    baseline.track !== toText(draft.track)
+    baseline.track !== toText(draft.track) ||
+    baseline.badges.join("\n") !== (Array.isArray(draft.badges) ? draft.badges : []).map(toText).filter(Boolean).join("\n")
   );
 };
 
@@ -139,6 +141,7 @@ export const buildAdminRows = (profiles = [], filters = {}) => {
         profile.reviewStatus,
         profile.isVisible ? "visible public 공개" : "hidden private 비공개",
         ...(profile.tags || []),
+        ...(profile.badges || []),
       ]
         .join(" ")
         .toLowerCase();

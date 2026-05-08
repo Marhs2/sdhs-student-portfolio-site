@@ -65,6 +65,10 @@ const githubUrl = computed(() => {
       </div>
     </dl>
 
+    <ul v-if="profile.badges?.length" class="profile-card-v2__badges" aria-label="관리자 인증 배지">
+      <li v-for="badge in profile.badges" :key="badge">{{ badge }}</li>
+    </ul>
+
     <div class="profile-card-v2__actions">
       <RouterLink :to="`/profiles/${profile.id}`" class="shell-action shell-action--primary">
         상세 보기

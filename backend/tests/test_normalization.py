@@ -1,6 +1,17 @@
 import unittest
+import os
 
-from backend.app.normalization import clean_github_url, clean_http_url, clean_rich_html, clean_youtube_url, normalize_job
+os.environ.setdefault("SUPABASE_URL", "https://example.supabase.co")
+os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "test-service-role")
+
+from backend.app.normalization import (
+    clean_github_url,
+    clean_http_url,
+    clean_rich_html,
+    clean_youtube_url,
+    normalize_job,
+    normalize_profile_record,
+)
 
 
 class NormalizationTests(unittest.TestCase):
@@ -59,6 +70,17 @@ class NormalizationTests(unittest.TestCase):
         )
         self.assertEqual(clean_http_url("/api/admin/settings"), "")
         self.assertEqual(clean_http_url("//evil.example/avatar.webp"), "")
+
+    def test_normalize_profile_record_deduplicates_badges(self) -> None:
+        profile = normalize_profile_record(
+            {
+                "id": 1,
+                "name": "Kim",
+                "badges": ["정보처리기능사", "정보처리기능사", "교내 해커톤 수상"],
+            },
+        )
+
+        self.assertEqual(profile["badges"], ["정보처리기능사", "교내 해커톤 수상"])
 
 
 if __name__ == "__main__":

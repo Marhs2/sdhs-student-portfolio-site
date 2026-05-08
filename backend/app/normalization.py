@@ -289,6 +289,19 @@ def _normalize_tag_list(value: Any) -> list[str]:
     return normalized
 
 
+def _normalize_badge_list(value: Any) -> list[str]:
+    badges = _normalize_tag_list(value)
+    deduped: list[str] = []
+    seen = set()
+    for badge in badges:
+        key = badge.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(badge)
+    return deduped[:12]
+
+
 def _normalize_review_status(value: Any) -> str:
     status = str(value or "").strip()
     return status or "approved"
@@ -315,6 +328,7 @@ def normalize_profile_record(
         "department": (record.get("department") or "").strip(),
         "track": (record.get("track") or "").strip(),
         "tags": _normalize_tag_list(record.get("tags")),
+        "badges": _normalize_badge_list(record.get("badges")),
         "featuredRank": int(record.get("featured_rank") or 9999),
         "reviewStatus": _normalize_review_status(record.get("review_status")),
         "isVisible": _normalize_visibility(record.get("is_visible")),

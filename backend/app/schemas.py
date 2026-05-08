@@ -9,6 +9,8 @@ MAX_HTML_LENGTH = 60000
 MAX_URL_LENGTH = 2048
 MAX_TAGS = 20
 MAX_TAG_LENGTH = 40
+MAX_BADGES = 12
+MAX_BADGE_LENGTH = 80
 
 
 def _validate_tags(tags: list[str] | None) -> list[str] | None:
@@ -20,6 +22,17 @@ def _validate_tags(tags: list[str] | None) -> list[str] | None:
         if len(str(tag)) > MAX_TAG_LENGTH:
             raise ValueError(f"태그는 최대 {MAX_TAG_LENGTH}자까지 입력할 수 있습니다.")
     return tags
+
+
+def _validate_badges(badges: list[str] | None) -> list[str] | None:
+    if badges is None:
+        return None
+    if len(badges) > MAX_BADGES:
+        raise ValueError(f"배지는 최대 {MAX_BADGES}개까지 입력할 수 있습니다.")
+    for badge in badges:
+        if len(str(badge)) > MAX_BADGE_LENGTH:
+            raise ValueError(f"배지는 최대 {MAX_BADGE_LENGTH}자까지 입력할 수 있습니다.")
+    return badges
 
 
 class ProfilePayload(BaseModel):
@@ -102,6 +115,12 @@ class AdminProfileUpdatePayload(BaseModel):
     featuredRank: int | None = Field(default=None, ge=1)
     reviewStatus: Literal["draft", "review", "approved", "banned"] | None = None
     isVisible: bool | None = None
+    badges: list[str] | None = Field(default=None, max_length=MAX_BADGES)
+
+    @field_validator("badges")
+    @classmethod
+    def validate_badges(cls, value: list[str] | None) -> list[str] | None:
+        return _validate_badges(value)
 
 
 class ServerAdminProfileUpdatePayload(AdminProfileUpdatePayload):

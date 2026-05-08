@@ -36,7 +36,7 @@ const sessionScopedStorage =
   typeof window !== "undefined" ? window.sessionStorage : undefined;
 
 export const supabaseAuthOptions = {
-  persistSession: true,
+  persistSession: false,
   storage: sessionScopedStorage,
   detectSessionInUrl: true,
   flowType: "pkce",
